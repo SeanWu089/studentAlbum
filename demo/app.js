@@ -84,7 +84,7 @@ function introTemplate() {
       <div class="intro-copy">
         <p class="section-label">学生资料收集</p>
         <h1>让老师<br>更了解你</h1>
-        <p>填写几项基本信息。内容会自动保存，中途退出后也可以继续。</p>
+        <p>填写几项基本信息。演示内容保存在当前浏览器，中途退出后也可以继续。</p>
       </div>
       <footer class="page-footer">
         <button class="primary" data-action="create">开始填写</button>
@@ -196,7 +196,7 @@ function completeTemplate() {
       <div class="page-body">
         <div class="complete-mark" aria-hidden="true">✓</div>
         <h1>资料已保存</h1>
-        <p class="complete-copy">老师已经可以看到这份档案。之后仍可用学号和续填口令修改内容。</p>
+        <p class="complete-copy">演示资料已保存在当前浏览器，暂未同步给老师。请在同一浏览器用学号和续填口令继续填写。</p>
       </div>
       <footer class="page-footer">
         <button class="primary" data-action="intro">返回首页</button>

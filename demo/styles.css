@@ -348,3 +348,19 @@ textarea:focus {
   .primary,
   .secondary { transition: none; }
 }
+
+/* Scroll the page naturally, including when the phone keyboard is open. */
+.device { height: auto; min-height: min(844px, calc(100dvh - 32px)); max-height: none; overflow: visible; }
+.screen { min-height: min(844px, calc(100dvh - 32px)); }
+input, textarea { font-size: 16px; }
+:focus-visible { outline: 3px solid #7baba3; outline-offset: 3px; }
+@media (max-width: 480px) {
+  .device { width: 100%; min-height: 100dvh; height: auto; }
+  .screen { min-height: 100dvh; padding: max(20px, env(safe-area-inset-top)) 22px max(20px, env(safe-area-inset-bottom)); }
+  .intro-copy { margin-top: clamp(36px, 10vh, 86px); }
+  .page-body { padding-top: clamp(24px, 7vh, 62px); }
+}
+@media (max-height: 600px) {
+  .intro-copy { margin-top: 24px; }
+  .page-body { padding-top: 20px; }
+}
