@@ -1,0 +1,350 @@
+:root {
+  color-scheme: light;
+  --canvas: #dfe8e5;
+  --surface: #f8faf9;
+  --field: #eaf1ef;
+  --field-active: #ffffff;
+  --ink: #193532;
+  --muted: #6b817d;
+  --line: #cbdad6;
+  --accent: #276d65;
+  --accent-pressed: #1e5852;
+  --error: #a33c4c;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  background: var(--canvas);
+}
+
+button,
+input,
+textarea { font: inherit; }
+
+button { cursor: pointer; }
+#app { width: 100%; }
+
+.device {
+  position: relative;
+  width: 390px;
+  height: 844px;
+  max-height: calc(100dvh - 32px);
+  margin: 16px auto;
+  overflow: hidden;
+  border: 1px solid rgba(25, 53, 50, 0.13);
+  border-radius: 34px;
+  background: var(--surface);
+  box-shadow: 0 26px 70px rgba(31, 65, 60, 0.2);
+}
+
+.screen {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  padding: 24px 22px 20px;
+  animation: page-in 180ms cubic-bezier(.2, .7, .2, 1);
+}
+
+.screen-header {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+
+.status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.text-button {
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.intro,
+.identity,
+.question,
+.passcode-page,
+.complete-page {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.intro-copy { margin-top: 86px; }
+
+.section-label {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+}
+
+h1 {
+  margin: 0;
+  font-size: 38px;
+  font-weight: 760;
+  letter-spacing: -0.065em;
+  line-height: 1.15;
+}
+
+.intro-copy > p:last-child,
+.identity-copy,
+.question-copy,
+.complete-copy {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.page-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding-top: 62px;
+}
+
+.page-footer {
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.primary,
+.secondary {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 13px;
+  font-weight: 720;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.primary:hover { background: var(--accent-pressed); }
+
+.secondary {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+
+.primary:active,
+.secondary:active { transform: scale(0.985); }
+
+.progress {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  width: 112px;
+}
+
+.progress span {
+  height: 3px;
+  border-radius: 99px;
+  background: var(--line);
+}
+
+.progress span.is-active { background: var(--accent); }
+
+.question-number {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.question h1,
+.identity h1,
+.passcode-page h1,
+.complete-page h1 {
+  font-size: 30px;
+  line-height: 1.25;
+}
+
+.field {
+  display: grid;
+  gap: 9px;
+  margin-top: 28px;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field-hint {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+input,
+textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: 15px 16px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  outline: none;
+  background: var(--field);
+  color: var(--ink);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+textarea {
+  min-height: 142px;
+  resize: none;
+  line-height: 1.55;
+}
+
+input::placeholder,
+textarea::placeholder { color: #879a96; }
+
+input:focus,
+textarea:focus {
+  border-color: var(--accent);
+  background: var(--field-active);
+  box-shadow: 0 0 0 3px rgba(39, 109, 101, 0.12);
+}
+
+.field-error {
+  min-height: 18px;
+  margin: 0;
+  color: var(--error);
+  font-size: 12px;
+}
+
+.save-state {
+  min-height: 18px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.file-input {
+  position: relative;
+  display: grid;
+  min-height: 116px;
+  place-items: center;
+  padding: 18px;
+  border: 1px dashed #9ab1ac;
+  border-radius: 13px;
+  background: var(--field);
+  color: var(--accent);
+  text-align: center;
+}
+
+.file-input input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.file-input strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.file-input small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.passcode {
+  margin: 34px 0 0;
+  padding: 22px 12px 22px 22px;
+  border-radius: 15px;
+  background: var(--field);
+  color: var(--accent);
+  font-size: 42px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+.complete-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 26px;
+  place-items: center;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+  font-size: 24px;
+}
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 480px) {
+  body { display: block; }
+  .device {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 481px) {
+  .device { height: calc(100dvh - 24px); margin: 12px auto; }
+  .screen { padding-top: 18px; padding-bottom: 16px; }
+  .intro-copy { margin-top: 44px; }
+  .page-body { padding-top: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen { animation: none; }
+  .primary,
+  .secondary { transition: none; }
+}
