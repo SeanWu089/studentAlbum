@@ -1,9 +1,41 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>老师工作台 · 学生小档案</title><link rel="stylesheet" href="admin.css"></head>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>老师工作台 · 学生小档案</title><link rel="stylesheet" href="admin.css"></head>
 <body>
-<aside class="sidebar"><a class="logo" href="admin.html"><span class="logo-mark">册</span>学生小档案</a><p class="nav-label">班级管理</p><a class="nav active" href="admin.html">学生档案 <span>06</span></a><a class="nav" href="/" target="_blank">预览学生填写页 ↗</a><div class="sidebar-bottom"><span class="avatar teacher">师</span><div><strong>老师工作台</strong><small>让每一位学生被看见</small></div></div></aside>
-<main><header class="topbar"><span>我的班级 / 学生档案</span><span class="demo-badge">演示模式</span></header><section class="content"><div class="heading"><div><p class="eyebrow">新学期 · 新的相识</p><h1>慢慢认识，每一个你。</h1><p class="muted">把学生的来处、热爱和闪光点，收进一本小档案。</p></div><button id="export" class="button">导出示例名单 ↓</button></div>
-<div class="collection"><div><span class="live-dot"></span><strong>学生填写入口</strong><p id="connection">正在读取手机访问地址…</p></div><button id="copy" class="button solid" disabled>复制填写链接</button></div>
-<div class="stats"><div><span>示例学生</span><strong>6 <small>位</small></strong></div><div><span>资料完整</span><strong>4 <small>位</small></strong></div><div><span>待补充</span><strong>2 <small>位</small></strong></div><div class="stat-progress"><span>示例完成率</span><strong>67<small>%</small></strong><div class="track"><i></i></div></div></div>
-<section class="roster"><div class="roster-heading"><div><h2>学生档案</h2><p>以下为虚构示例，手机填写内容暂不同步到这里。</p></div><label class="search"><span>搜索</span><input id="search" placeholder="姓名、学号或籍贯" aria-label="搜索学生"></label></div><div class="filters" role="group" aria-label="档案状态"><button class="selected" data-filter="all">全部学生</button><button data-filter="complete">资料完整</button><button data-filter="pending">待补充</button><span id="count"></span></div><div class="table-wrap"><table><thead><tr><th>学生</th><th>籍贯</th><th>喜欢的科目</th><th>闪光点</th><th>资料状态</th><th><span class="sr-only">操作</span></th></tr></thead><tbody id="rows"></tbody></table></div><div id="empty" hidden>没有找到符合条件的学生，试试其他关键词。</div><footer class="table-footer">每个名字背后，都有一个值得了解的故事。<span>示例班级 · 2026 秋季</span></footer></section><p class="footnote">资料留在身边，了解多一点。</p></section></main>
-<dialog id="detail"><form method="dialog"><button class="close" aria-label="关闭详情">×</button></form><div id="detail-content"></div></dialog><div id="toast" role="status"></div><script src="admin.js?v=2"></script></body></html>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head"><a class="logo" href="#students"><span class="logo-mark">册</span><span class="logo-text">学生小档案</span></a><button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="收起侧栏" aria-expanded="true">‹</button></div>
+  <nav class="sidebar-nav" aria-label="管理功能">
+    <a class="nav active" data-view="students" href="#students"><span class="nav-icon">档</span><span class="nav-text">学生档案</span><span class="nav-meta" id="nav-count">0</span></a>
+    <a class="nav" data-view="trash" href="#trash"><span class="nav-icon">收</span><span class="nav-text">回收站</span></a>
+    <a class="nav" data-view="classes" href="#classes"><span class="nav-icon">班</span><span class="nav-text">本学期班级</span></a>
+    <a class="nav" href="/" target="_blank" rel="noopener"><span class="nav-icon">览</span><span class="nav-text">预览学生填写页</span></a>
+  </nav>
+  <div class="sidebar-bottom"><span class="avatar teacher">师</span><div><strong>老师工作台</strong><small>班级与学生管理</small></div></div>
+</aside>
+<main>
+  <header class="topbar"><span id="term-title">我的班级 / 学生档案</span><span id="sync-state" role="status">正在连接…</span></header>
+  <section class="content">
+    <section id="view-students" class="view-panel" data-view-panel="students">
+    <div class="heading"><div><h1 id="class-title">学生档案</h1><p class="muted">查看、编辑和管理本班学生资料</p></div><button id="export" class="button" disabled>导出本班名单 ↓</button></div><div id="class-tabs" class="class-tabs" aria-label="班级切换"></div>
+    <section class="collection" aria-label="学生填写入口"><div class="connection-copy"><strong>学生填写入口</strong><p id="connection" role="status">正在读取连接状态…</p><a id="public-link" class="public-link" target="_blank" rel="noopener" hidden></a></div><div class="connection-actions"><button id="copy" class="button solid" disabled>复制填写链接</button><button id="reconnect" class="button">连接 ngrok</button></div></section>
+    <details id="tunnel-settings" class="tunnel-settings"><summary>公网连接设置</summary><form id="tunnel-form"><label for="ngrok-token">ngrok Authtoken</label><div class="inline-form"><input id="ngrok-token" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴账号令牌，仅保存在本机"><button class="button solid" type="submit">保存并连接</button></div><p>首次使用需填写一次。<a href="https://dashboard.ngrok.com/get-started/your-authtoken" target="_blank" rel="noopener">打开 ngrok 获取令牌 ↗</a>；手机可使用移动数据访问。</p><p id="tunnel-error" class="form-error" role="alert"></p></form></details>
+    <div class="stats"><div><span>已建档学生</span><strong><b id="total">0</b> <small>位</small></strong></div><div><span>资料完整</span><strong><b id="completed">0</b> <small>位</small></strong></div><div><span>待补充</span><strong><b id="pending">0</b> <small>位</small></strong></div><div class="stat-progress"><span>已建档资料完成率</span><strong><b id="percent">0</b><small>%</small></strong><progress id="progress" max="100" value="0" aria-label="资料完成率"></progress></div></div>
+    <section class="roster" id="roster"><div class="roster-heading"><div><h2>学生档案</h2><p id="roster-note">学生保存后，档案会自动更新在这里。</p></div><label class="search"><span>搜索</span><input id="search" placeholder="姓名、学号或籍贯" aria-label="搜索学生"></label></div>
+    <div class="filters" role="group" aria-label="档案筛选"><select hidden id="class-filter" aria-label="按班级筛选"><option value="">尚未添加班级</option></select><button class="selected" data-filter="all">全部学生</button><button data-filter="complete">资料完整</button><button data-filter="pending">待补充</button><span id="count">共 0 位</span></div>
+    <div class="table-wrap" id="table-wrap" hidden><table><thead><tr><th>学生</th><th>班级</th><th>籍贯</th><th>喜欢的科目</th><th>闪光点</th><th>资料状态</th><th><span class="sr-only">操作</span></th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div id="empty" class="empty-state"><span class="empty-mark" aria-hidden="true">册</span><h3>还没有学生档案</h3><p>添加班级后，将填写链接发给学生。<br>第一份档案会从这里开始。</p></div>
+    <footer class="table-footer"><span id="roster-term"></span></footer></section>
+    </section>
+
+    <section id="view-trash" class="view-panel standalone-panel" data-view-panel="trash" hidden><div class="section-title"><div><h1>回收站</h1><p>档案保留 30 天，期间可恢复；到期后自动清理。</p></div><span id="trash-count">0 份档案</span></div><div id="trash-list"></div></section>
+    <section id="view-classes" class="view-panel standalone-panel" data-view-panel="classes" hidden>
+      <div class="section-title"><div><h1>本学期班级</h1><p>添加任教班级后，学生填写时即可选择。</p></div><span id="class-count">0 个班级</span></div>
+      <form id="class-form" class="class-editor"><div class="class-form-grid"><label for="term">学期名称<input id="term" maxlength="60" placeholder="例如：2026—2027 学年第一学期" required></label><label for="class-names">添加班级<textarea id="class-names" maxlength="6000" rows="3" aria-describedby="class-names-help"></textarea><small id="class-names-help">多个班级可用逗号或换行分隔</small></label><button id="save-classes" type="submit" class="button solid">保存班级设置</button></div><p id="class-error" class="form-error" role="alert"></p></form>
+      <div class="class-list"><p class="class-list-label">已添加班级</p><div id="class-chips" class="class-chips"><p class="muted">尚未添加班级</p></div></div>
+    </section>
+  </section>
+</main>
+<dialog id="detail"><form method="dialog"><button class="close" aria-label="关闭详情">×</button></form><div id="detail-content"></div></dialog>
+<dialog id="class-delete-dialog" class="confirm-dialog" aria-labelledby="class-delete-title"><p class="confirm-label">删除班级</p><h2 id="class-delete-title">确认删除班级吗？</h2><p>班级内所有学生将被移入回收站。</p><div class="confirm-actions"><button id="class-delete-cancel" class="button" type="button">取消</button><button id="class-delete-confirm" class="button danger" type="button">确认删除</button></div></dialog>
+<div id="toast" role="status"></div><script src="admin.js"></script>
+</body></html>

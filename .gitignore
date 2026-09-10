@@ -3,3 +3,7 @@
 .runtime/
 __pycache__/
 *.pyc
+data/
+.venv/
+dist/
+.build/
