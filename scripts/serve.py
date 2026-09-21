@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 import signal
 import socket
+import sys
 import threading
 import time
 import webbrowser
@@ -15,7 +16,15 @@ from webserver import Application
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def configure_output():
+    """Keep Chinese status messages safe on Windows' legacy console encodings."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='backslashreplace')
+
+
 def main():
+    configure_output()
     parser = argparse.ArgumentParser()
     parser.add_argument('--local', action='store_true', help='仅本机运行，不启动 ngrok')
     parser.add_argument('--no-open', action='store_true')
