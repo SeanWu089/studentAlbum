@@ -1,8 +1,14 @@
 let trash = [], snapshots = [], editing = false;
-let students = [], classes = [], filter = 'all', publicUrl = '', adminKey = '', currentTerm = '';
+let students = [], classes = [], filter = 'all', publicUrl = '', lanUrl = '', adminKey = '', currentTerm = '';
 let loaded = false, refreshBusy = false, detailId = null, photoUrl = '', detailVersion = '';
 const $ = (selector) => document.querySelector(selector);
 const escapeText = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+
+function setConnectionStatus(selector, text, tone) {
+  const node = $(selector);
+  node.textContent = text;
+  node.className = `connection-status ${tone}`;
+}
 
 async function api(path, data, blob = false) {
   if (!adminKey) {
@@ -71,17 +77,26 @@ async function refresh() {
     currentTerm = data.term;
     if (!loaded) $('#term').value = data.term;
     $('#roster-term').textContent = data.term;
-    publicUrl = data.connection.publicUrl || data.connection.lanUrl || '';
-    $('#connection').textContent = data.connection.message;
-    $('#public-link').hidden = !publicUrl;
-    if (publicUrl) {
-      $('#public-link').href = publicUrl;
-      $('#public-link').textContent = data.connection.publicUrl ? publicUrl : `同一 Wi‑Fi 填写链接：${publicUrl}`;
-    }
-    $('#copy').disabled = !publicUrl;
-    $('#reconnect').disabled = data.connection.tunnelStatus === 'connecting';
-    $('#reconnect').textContent = publicUrl ? '重新连接' : '连接 ngrok';
-    if (!loaded && data.connection.tunnelStatus === 'token_required') $('#tunnel-settings').open = true;
+    const connection = data.connection || {};
+    const lanOnline = connection.lanStatus === 'online' && !!connection.lanUrl;
+    const publicOnline = connection.tunnelStatus === 'online' && !!connection.publicUrl;
+    lanUrl = lanOnline ? connection.lanUrl : '';
+    publicUrl = publicOnline ? connection.publicUrl : '';
+    $('#lan-address').textContent = lanOnline ? lanUrl : '尚未获取到局域网地址';
+    setConnectionStatus('#lan-status', lanOnline ? '可用' : '不可用', lanOnline ? 'online' : 'offline');
+    $('#copy-lan').disabled = !lanOnline;
+    $('#public-address').textContent = connection.configuredPublicUrl || (connection.tunnelStatus === 'connecting' ? '正在获取固定公网地址…' : '尚未获取固定公网地址');
+    $('#public-message').textContent = connection.message || '公网状态暂不可用。';
+    const publicStatus = {
+      online: ['已连接', 'online'],
+      connecting: ['连接中', 'pending'],
+      error: ['连接异常', 'error'],
+      not_configured: ['尚未配置', 'offline'],
+      off: ['未启动', 'offline'],
+    }[connection.tunnelStatus] || ['状态未知', 'offline'];
+    setConnectionStatus('#public-status', publicStatus[0], publicStatus[1]);
+    $('#copy-public').disabled = !publicOnline;
+    $('#reconnect').disabled = connection.tunnelStatus === 'connecting';
     $('#sync-state').textContent = '已连接 · 每 3 秒更新';
     $('#sync-state').classList.remove('form-error');
     renderStudents();
@@ -92,9 +107,12 @@ async function refresh() {
   } catch {
     $('#sync-state').textContent = '连接中断 · 正在重试';
     $('#sync-state').classList.add('form-error');
-    $('#connection').textContent = '无法连接本机服务，请保持启动窗口开启。';
-    $('#copy').disabled = true;
-    $('#public-link').hidden = true;
+    setConnectionStatus('#lan-status', '不可用', 'error');
+    setConnectionStatus('#public-status', '不可用', 'error');
+    $('#lan-address').textContent = '无法连接本机服务';
+    $('#public-message').textContent = '无法连接本机服务，请重新打开学生小档案。';
+    $('#copy-lan').disabled = true;
+    $('#copy-public').disabled = true;
   } finally { refreshBusy = false; }
 }
 
@@ -139,20 +157,12 @@ $('#class-form').onsubmit = async event => {
   catch (error) { $('#class-error').textContent = error.message; }
   finally { button.disabled = false; }
 };
-$('#tunnel-form').onsubmit = async event => {
-  event.preventDefault();
-  const token = $('#ngrok-token').value.trim();
-  if (!token) { $('#tunnel-error').textContent = '请先粘贴 ngrok Authtoken。'; return; }
-  $('#tunnel-error').textContent = '';
-  const button = event.target.querySelector('button'); button.disabled = true;
-  try { await api('/api/admin/tunnel', {token}); $('#ngrok-token').value = ''; await refresh(); }
-  catch (error) { $('#tunnel-error').textContent = error.message; }
-  finally { button.disabled = false; }
-};
 $('#reconnect').onclick = async () => { $('#reconnect').disabled = true; try { await api('/api/admin/tunnel', {}); await refresh(); } catch (error) { toast(error.message); } finally { $('#reconnect').disabled = false; } };
 let toastTimer;
 function toast(message) { $('#toast').textContent = message; $('#toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 3500); }
-$('#copy').onclick = async () => { try { await navigator.clipboard.writeText(publicUrl); toast('填写链接已复制'); } catch { toast('复制失败，请手动复制上方网址'); } };
+async function copyLink(url, label) { try { await navigator.clipboard.writeText(url); toast(`${label}已复制`); } catch { toast('复制失败，请手动复制上方网址'); } }
+$('#copy-lan').onclick = () => copyLink(lanUrl, '局域网链接');
+$('#copy-public').onclick = () => copyLink(publicUrl, '公网链接');
 $('#export').onclick = () => {
   // Quote cells and neutralize spreadsheet formula prefixes.
   const cell = value => '"' + String(value ?? '').replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"','""') + '"';

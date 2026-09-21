@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Launch the local student album, its database and optional ngrok tunnel."""
 import argparse
+import ipaddress
+import os
 from pathlib import Path
 import signal
 import socket
@@ -14,6 +16,10 @@ from tunnel import Tunnel
 from webserver import Application
 
 ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_PUBLIC_URL = os.getenv(
+    'STUDENT_ALBUM_PUBLIC_URL',
+    '',
+).rstrip('/')
 
 
 def configure_output():
@@ -21,6 +27,28 @@ def configure_output():
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, 'reconfigure'):
             stream.reconfigure(encoding='utf-8', errors='backslashreplace')
+
+
+def detect_lan_address():
+    candidates = []
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(('1.1.1.1', 80))
+            candidates.append(probe.getsockname()[0])
+    except OSError:
+        pass
+    try:
+        candidates.extend(info[4][0] for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET))
+    except OSError:
+        pass
+    for address in candidates:
+        try:
+            ip = ipaddress.ip_address(address)
+        except ValueError:
+            continue
+        if ip.is_private and not ip.is_loopback:
+            return address
+    return ''
 
 
 def main():
@@ -35,9 +63,16 @@ def main():
     args = parser.parse_args()
     runtime = ROOT / '.runtime'
     runtime.mkdir(exist_ok=True, mode=0o700)
-    state = {'publicUrl': '', 'lanUrl': '', 'tunnelStatus': 'off', 'message': '公网入口未开启，请点击连接 ngrok。'}
+    state = {
+        'publicUrl': '',
+        'configuredPublicUrl': DEFAULT_PUBLIC_URL,
+        'lanUrl': '',
+        'lanStatus': 'unavailable',
+        'tunnelStatus': 'off',
+        'message': '公网入口尚未启动。',
+    }
     store = Store(args.data_dir)
-    tunnel = Tunnel(runtime, state, args.student_port)
+    tunnel = Tunnel(runtime, state, args.student_port, DEFAULT_PUBLIC_URL)
     app = Application(ROOT, store, state, tunnel)
     servers = []
     try:
@@ -46,21 +81,19 @@ def main():
             servers.append(server)
             threading.Thread(target=server.serve_forever, daemon=True).start()
         if args.lan:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-                    probe.connect(('1.1.1.1', 80))
-                    address = probe.getsockname()[0]
-                state.update(lanUrl=f'http://{address}:{args.student_port}/',
+            address = detect_lan_address()
+            if address:
+                state.update(lanUrl=f'http://{address}:{args.student_port}/', lanStatus='online',
                              message='同一 Wi-Fi 填写入口已开启。老师管理页仍只限本机。')
-            except OSError:
-                state.update(message='学生填写服务已开启；电脑连接 Wi-Fi 后会显示局域网入口。')
+            else:
+                state.update(lanUrl='', lanStatus='unavailable')
         url = f'http://127.0.0.1:{args.admin_port}/admin.html'
         print(f'老师管理页：{url}\n' +
               (f'同一 Wi-Fi 填写入口：{state["lanUrl"]}\n' if args.lan else '') +
               f'资料保存在：{store.path}\n保持电脑联网、唤醒；按 Control+C 停止服务。', flush=True)
         if not args.no_open:
             webbrowser.open(url)
-        if not args.local and not args.lan:
+        if not args.local:
             tunnel.start()
         while True:
             time.sleep(1)

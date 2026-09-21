@@ -196,10 +196,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if path == '/api/admin/reset-code':
                     return self.send(store.reset_code(data.get('id', '')))
                 if path == '/api/admin/tunnel' and self.app.tunnel:
-                    token = data.get('token', '')
-                    if not isinstance(token, str) or len(token) > 500 or any(c.isspace() for c in token):
-                        raise Problem('ngrok 令牌格式不正确。')
-                    self.app.tunnel.start(token)
+                    self.app.tunnel.start()
                     return self.send({'ok': True})
         raise Problem('页面不存在。', 404)
 

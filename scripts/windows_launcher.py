@@ -39,7 +39,7 @@ def main():
     try:
         log = log_path.open('a', encoding='utf-8')
         subprocess.Popen(
-            [str(pythonw), str(server_script), '--local', '--lan', '--no-open'],
+            [str(pythonw), str(server_script), '--lan', '--no-open'],
             cwd=ROOT,
             stdin=subprocess.DEVNULL,
             stdout=log,

@@ -74,6 +74,18 @@ class AlbumTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(len(self.store.classes()['classes']), 3)
 
+    def test_admin_shows_dual_connections_without_ngrok_credentials(self):
+        status, page = self.request('/admin.html', admin=True)
+        self.assertEqual(status, 200)
+        html = page.decode('utf-8')
+        self.assertIn('局域网填写入口', html)
+        self.assertIn('公网填写入口', html)
+        self.assertIn('id="copy-lan"', html)
+        self.assertIn('id="copy-public"', html)
+        self.assertNotIn('Authtoken', html)
+        self.assertNotIn('ngrok-token', html)
+        self.assertNotIn('tunnel-form', html)
+
     def test_teacher_edit_recycle_restore_and_expiry(self):
         payload, result = self.register()
         sid, token = result['student']['id'], result['token']
