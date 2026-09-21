@@ -31,6 +31,7 @@ class AlbumTest(unittest.TestCase):
         for server in (self.admin, self.public):
             server.shutdown()
             server.server_close()
+        self.store.close()
         self.temp.cleanup()
 
     def request(self, path, data=None, token='', admin=False, headers=None):
@@ -66,6 +67,7 @@ class AlbumTest(unittest.TestCase):
             empty = Store(directory)
             self.assertEqual(empty.classes(), {'term':'','classes':[]})
             self.assertEqual(empty.students(), [])
+            empty.close()
         status, result = self.request('/api/classes')
         self.assertEqual(status, 200)
         self.assertEqual(len(result['classes']), 2)
@@ -147,6 +149,28 @@ class AlbumTest(unittest.TestCase):
             row = db.execute('SELECT salt,code_hash FROM students').fetchone()
             self.assertNotEqual(row[1], '123456')
             self.assertNotIn('code_hash', json.dumps(overview))
+        reopened.close()
+
+    def test_snapshots_restore_complete_database_and_keep_latest_thirty(self):
+        payload, result = self.register()
+        sid, token = result['student']['id'], result['token']
+        self.request('/api/student', {'origin':'原来的籍贯'}, token)
+        original = self.store.flush_snapshot('自动保存')
+        self.assertIsNotNone(original)
+        edit = dict(id=sid, classId=payload['classId'], number='001', name='后来修改',
+                    origin='新的籍贯', subject='', ability='', message='')
+        self.assertEqual(self.request('/api/admin/edit', edit, admin=True)[0], 200)
+        status, restored = self.request('/api/admin/restore-snapshot', {'id':original['id']}, admin=True)
+        self.assertEqual(status, 200, restored)
+        self.assertEqual(self.store.student(sid)['name'], '测试学生')
+        self.assertEqual(self.store.student(sid)['origin'], '原来的籍贯')
+        self.assertEqual(self.request('/api/student', token=token)[0], 401)
+        reasons = [item['reason'] for item in self.store.snapshots()['items']]
+        self.assertIn('恢复前', reasons)
+        self.store.snapshot_limit = 3
+        for index in range(5):
+            self.store.create_snapshot(f'测试 {index}')
+        self.assertEqual(len(self.store.snapshots()['items']), 3)
 
     def test_duplicate_idempotent_registration_and_class_scope(self):
         payload, result = self.register()

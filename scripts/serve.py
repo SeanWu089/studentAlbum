@@ -65,6 +65,7 @@ def main():
         for server in servers:
             server.shutdown()
             server.server_close()
+        store.close()
     return 0
 
 

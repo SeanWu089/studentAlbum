@@ -2,6 +2,8 @@
 """Build a self-contained Windows x64 folder and zip without user data."""
 from pathlib import Path
 import hashlib
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -12,21 +14,57 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / '.build' / 'windows'
 DIST = ROOT / 'dist'
-VERSION = 'v0.2'
+VERSION = os.environ.get('STUDENT_ALBUM_VERSION', 'v0.3')
+if not re.fullmatch(r'v\d+\.\d+(?:\.\d+)?', VERSION):
+    raise ValueError('版本号必须类似 v0.3 或 v0.3.1')
 PYTHON_VERSION = '3.13.7'
 PILLOW_VERSION = '12.3.0'
 PYTHON_URL = f'https://www.python.org/ftp/python/{PYTHON_VERSION}/python-{PYTHON_VERSION}-embed-amd64.zip'
 NGROK_URL = 'https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip'
+NGROK_VERSION = '3.39.11'
+NGROK_SHA256 = '699bbf1932ec43a573b764bd03e6568efa2c4e45955eb3cc2089c19bb4be4464'
 PACKAGE_NAME = f'StudentAlbum-Windows-x64-{VERSION}'
 
 
-def download(url, path):
+def write_python_path(runtime, stdlib_archive):
+    """Configure embedded Python to see both bundled packages and app modules."""
+    (runtime / 'python313._pth').write_text(
+        f'{stdlib_archive}\n.\nLib/site-packages\n../app/scripts\nimport site\n',
+        encoding='utf-8',
+    )
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with path.open('rb') as source:
+        for block in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def verify_checksum(path, expected, label):
+    actual = file_sha256(path)
+    if actual != expected:
+        raise RuntimeError(f'{label} 校验失败：预期 {expected}，实际 {actual}')
+
+
+def download(url, path, expected_sha256=None, label=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
+        if expected_sha256:
+            verify_checksum(path, expected_sha256, label or path.name)
         return
     print(f'下载 {path.name}…', flush=True)
-    with urllib.request.urlopen(url, timeout=90) as response, path.open('wb') as output:
-        shutil.copyfileobj(response, output)
+    partial = path.with_suffix(path.suffix + '.part')
+    try:
+        with urllib.request.urlopen(url, timeout=90) as response, partial.open('wb') as output:
+            shutil.copyfileobj(response, output)
+        if expected_sha256:
+            verify_checksum(partial, expected_sha256, label or path.name)
+        partial.replace(path)
+    except Exception:
+        partial.unlink(missing_ok=True)
+        raise
 
 
 def copy_app(target):
@@ -70,6 +108,9 @@ def verify_package(target):
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise RuntimeError('安装包缺少文件：' + ', '.join(missing))
+    pth = next((target / 'runtime').glob('python*._pth'))
+    if '../app/scripts' not in pth.read_text(encoding='utf-8').splitlines():
+        raise RuntimeError('内置 Python 无法搜索 app/scripts，应用模块将无法导入')
 
 
 def main():
@@ -77,7 +118,7 @@ def main():
     python_zip = downloads / f'python-{PYTHON_VERSION}-embed-amd64.zip'
     ngrok_zip = downloads / 'ngrok-windows-amd64.zip'
     download(PYTHON_URL, python_zip)
-    download(NGROK_URL, ngrok_zip)
+    download(NGROK_URL, ngrok_zip, NGROK_SHA256, f'ngrok {NGROK_VERSION}')
 
     shutil.rmtree(BUILD, ignore_errors=True)
     target = BUILD / PACKAGE_NAME
@@ -85,8 +126,8 @@ def main():
     runtime.mkdir(parents=True)
     with zipfile.ZipFile(python_zip) as bundle:
         bundle.extractall(runtime)
-    pth = next(runtime.glob('python*._pth'))
-    pth.write_text(f'python313.zip\n.\nLib/site-packages\nimport site\n', encoding='utf-8')
+    stdlib_archive = next(runtime.glob('python*.zip')).name
+    write_python_path(runtime, stdlib_archive)
     install_pillow(runtime, downloads)
     copy_app(target)
 
@@ -108,6 +149,7 @@ def main():
             if path.is_file():
                 bundle.write(path, path.relative_to(BUILD))
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    archive.with_suffix('.zip.sha256').write_text(f'{digest}  {archive.name}\n', encoding='utf-8')
     print(f'已生成：{archive}')
     print(f'大小：{archive.stat().st_size / 1024 / 1024:.1f} MB')
     print(f'SHA-256：{digest}')

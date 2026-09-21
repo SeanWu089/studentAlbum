@@ -140,7 +140,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.send({'key': self.app.admin_key})
             if path == '/api/admin/overview':
                 self.admin()
-                return self.send({**store.classes(), 'students': store.students(), 'trash': store.students(trash=True), 'connection': dict(self.app.state)})
+                return self.send({**store.classes(), 'students': store.students(), 'trash': store.students(trash=True),
+                                  'snapshots': store.snapshots(), 'connection': dict(self.app.state)})
             if path.startswith('/api/admin/photos/'):
                 self.admin()
                 return self.send(store.photo(path.rsplit('/', 1)[-1]), content_type='image/jpeg')
@@ -190,6 +191,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     return self.send(store.delete_class(data.get('id', '')))
                 if path == '/api/admin/restore-class':
                     return self.send(store.restore_class(data.get('id', '')))
+                if path == '/api/admin/restore-snapshot':
+                    return self.send(store.restore_snapshot(data.get('id', '')))
                 if path == '/api/admin/reset-code':
                     return self.send(store.reset_code(data.get('id', '')))
                 if path == '/api/admin/tunnel' and self.app.tunnel:

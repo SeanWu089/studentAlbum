@@ -1,8 +1,12 @@
 """SQLite persistence for classes, student records, credentials and photos."""
 import hashlib
 import hmac
+import json
+import os
+import re
 import secrets
 import sqlite3
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -27,10 +31,20 @@ def hash_code(code, salt):
 
 
 class Store:
-    def __init__(self, directory):
+    def __init__(self, directory, snapshot_delay=120, snapshot_limit=30):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.path = self.directory / 'album.sqlite3'
+        self.snapshot_directory = self.directory / '.snapshots'
+        self.snapshot_directory.mkdir(exist_ok=True, mode=0o700)
+        self.snapshot_delay = snapshot_delay
+        self.snapshot_limit = snapshot_limit
+        self.db_lock = threading.RLock()
+        self.snapshot_lock = threading.RLock()
+        self.snapshot_timer = None
+        self.snapshot_dirty = False
+        self.snapshot_error = ''
+        self.closed = False
         with self.connect() as db:
             db.executescript('''
                 PRAGMA journal_mode=WAL;
@@ -59,14 +73,136 @@ class Store:
 
     @contextmanager
     def connect(self):
-        db = sqlite3.connect(self.path, timeout=15)
-        db.row_factory = sqlite3.Row
-        db.execute('PRAGMA foreign_keys=ON')
+        with self.db_lock:
+            db = sqlite3.connect(self.path, timeout=15)
+            db.row_factory = sqlite3.Row
+            db.execute('PRAGMA foreign_keys=ON')
+            try:
+                with db:
+                    yield db
+            finally:
+                db.close()
+
+    def mark_changed(self):
+        with self.snapshot_lock:
+            if self.closed:
+                return
+            self.snapshot_dirty = True
+            if self.snapshot_timer:
+                self.snapshot_timer.cancel()
+            self.snapshot_timer = threading.Timer(self.snapshot_delay, self.flush_snapshot)
+            self.snapshot_timer.daemon = True
+            self.snapshot_timer.start()
+
+    def flush_snapshot(self, reason='自动保存'):
+        with self.snapshot_lock:
+            if self.snapshot_timer:
+                self.snapshot_timer.cancel()
+                self.snapshot_timer = None
+            if not self.snapshot_dirty:
+                return None
         try:
-            with db:
-                yield db
+            result = self.create_snapshot(reason)
+            with self.snapshot_lock:
+                self.snapshot_dirty = False
+                self.snapshot_error = ''
+            return result
+        except Exception:
+            with self.snapshot_lock:
+                self.snapshot_error = '最近一次历史快照未能保存，下次修改时会重试。'
+            return None
+
+    def create_snapshot(self, reason='自动保存'):
+        created = time.time()
+        snapshot_id = f'{int(created * 1000)}-{secrets.token_hex(4)}'
+        database = self.snapshot_directory / f'{snapshot_id}.sqlite3'
+        partial = self.snapshot_directory / f'.{snapshot_id}.sqlite3.tmp'
+        metadata = self.snapshot_directory / f'{snapshot_id}.json'
+        metadata_partial = self.snapshot_directory / f'.{snapshot_id}.json.tmp'
+        with self.snapshot_lock, self.db_lock:
+            source = sqlite3.connect(self.path, timeout=15)
+            target = sqlite3.connect(partial)
+            try:
+                source.backup(target)
+                target.commit()
+                classes = target.execute('SELECT COUNT(*) FROM classes').fetchone()[0]
+                students = target.execute('SELECT COUNT(*) FROM students').fetchone()[0]
+            finally:
+                target.close()
+                source.close()
+            partial.replace(database)
+            database.chmod(0o600)
+            details = {'id': snapshot_id, 'createdAt': created, 'reason': reason,
+                       'classes': classes, 'students': students}
+            metadata_partial.write_text(json.dumps(details, ensure_ascii=False), encoding='utf-8')
+            metadata_partial.replace(metadata)
+            metadata.chmod(0o600)
+            self._trim_snapshots()
+            return details
+
+    def _trim_snapshots(self):
+        items = sorted(self.snapshot_directory.glob('*.json'), key=lambda path: path.name, reverse=True)
+        for metadata in items[self.snapshot_limit:]:
+            database = metadata.with_suffix('.sqlite3')
+            metadata.unlink(missing_ok=True)
+            database.unlink(missing_ok=True)
+
+    def snapshots(self):
+        result = []
+        for metadata in sorted(self.snapshot_directory.glob('*.json'), key=lambda path: path.name, reverse=True):
+            try:
+                details = json.loads(metadata.read_text(encoding='utf-8'))
+                if metadata.with_suffix('.sqlite3').is_file():
+                    result.append(details)
+            except (OSError, ValueError, TypeError):
+                continue
+        return {'items': result, 'error': self.snapshot_error}
+
+    def restore_snapshot(self, snapshot_id):
+        if not isinstance(snapshot_id, str) or not re.fullmatch(r'\d{10,16}-[0-9a-f]{8}', snapshot_id):
+            raise Problem('历史版本编号无效。')
+        selected = self.snapshot_directory / f'{snapshot_id}.sqlite3'
+        if not selected.is_file():
+            raise Problem('历史版本不存在或已被清理。', 404)
+        self.create_snapshot('恢复前')
+        restore_file = self.directory / f'.restore-{secrets.token_hex(4)}.sqlite3'
+        try:
+            with self.snapshot_lock, self.db_lock:
+                source = sqlite3.connect(selected, timeout=15)
+                target = sqlite3.connect(restore_file)
+                try:
+                    source.backup(target)
+                    required = {'settings', 'classes', 'students', 'sessions'}
+                    tables = {row[0] for row in target.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                    check = target.execute('PRAGMA quick_check').fetchone()[0]
+                    if check != 'ok' or not required.issubset(tables):
+                        raise Problem('这个历史版本不完整，无法恢复。')
+                    target.execute('DELETE FROM sessions')
+                    target.commit()
+                    classes = target.execute('SELECT COUNT(*) FROM classes').fetchone()[0]
+                    students = target.execute('SELECT COUNT(*) FROM students').fetchone()[0]
+                finally:
+                    target.close()
+                    source.close()
+                for suffix in ('-wal', '-shm'):
+                    Path(str(self.path) + suffix).unlink(missing_ok=True)
+                os.replace(restore_file, self.path)
+                self.path.chmod(0o600)
+                self.snapshot_dirty = False
+                if self.snapshot_timer:
+                    self.snapshot_timer.cancel()
+                    self.snapshot_timer = None
+            return {'ok': True, 'classes': classes, 'students': students}
         finally:
-            db.close()
+            restore_file.unlink(missing_ok=True)
+
+    def close(self):
+        with self.snapshot_lock:
+            if self.snapshot_timer:
+                self.snapshot_timer.cancel()
+                self.snapshot_timer = None
+        self.flush_snapshot('关闭前自动保存')
+        self.closed = True
 
     def classes(self):
         with self.connect() as db:
@@ -89,6 +225,7 @@ class Store:
                 else:
                     db.execute('INSERT INTO classes(id,name,created,deleted_at) VALUES(?,?,?,NULL)',
                                (secrets.token_hex(16), name, time.time()))
+        self.mark_changed()
         return self.classes()
 
     def _session(self, db, student_id):
@@ -109,6 +246,7 @@ class Store:
         salt = secrets.token_hex(16)
         code_hash = hash_code(code, salt)
         now, sid = time.time(), secrets.token_hex(16)
+        created_new = False
         with self.connect() as db:
             if not db.execute('SELECT 1 FROM classes WHERE id=? AND deleted_at IS NULL', (class_id,)).fetchone():
                 raise Problem('请选择老师已设置的班级。')
@@ -123,9 +261,12 @@ class Store:
                     db.execute('''INSERT INTO students(id,class_id,number,name,salt,code_hash,request_key,created,updated)
                                   VALUES(?,?,?,?,?,?,?,?,?)''',
                                (sid, class_id, number, name, salt, code_hash, request_key, now, now))
+                    created_new = True
                 except sqlite3.IntegrityError:
                     raise Problem('建档请求已处理，请使用续填口令继续。', 409)
             token = self._session(db, sid)
+        if created_new:
+            self.mark_changed()
         return {'token': token, 'student': self.student(sid)}
 
     def login(self, data):
@@ -184,12 +325,14 @@ class Store:
         with self.connect() as db:
             db.execute('UPDATE students SET ' + ','.join(f'{key}=?' for key in values) + ',updated=? WHERE id=?',
                        (*values.values(), time.time(), sid))
+        self.mark_changed()
         return {'student': self.student(sid)}
 
     def save_photo(self, sid, photo):
         with self.connect() as db:
             db.execute('UPDATE students SET photo=?,photo_name=?,photo_version=?,updated=? WHERE id=?',
                        (photo, '个人照片.jpg', secrets.token_hex(8), time.time(), sid))
+        self.mark_changed()
         return {'student': self.student(sid)}
 
     def photo(self, sid):
@@ -205,9 +348,12 @@ class Store:
         with self.connect() as db:
             db.execute('UPDATE students SET salt=?,code_hash=? WHERE id=?', (salt, hash_code(code, salt), sid))
             db.execute('DELETE FROM sessions WHERE student_id=?', (sid,))
+        self.mark_changed()
         return {'code': code}
 
     def recycle(self, sid, restore=False):
+        if not restore:
+            self.create_snapshot('删除前')
         with self.connect() as db:
             row = db.execute('SELECT deleted_at FROM students WHERE id=?', (sid,)).fetchone()
             if not row:
@@ -222,10 +368,12 @@ class Store:
             db.execute('UPDATE students SET deleted_at=?,updated=? WHERE id=?',
                        (None if restore else time.time(), time.time(), sid))
             db.execute('DELETE FROM sessions WHERE student_id=?', (sid,))
+        self.mark_changed()
         return {'ok': True}
 
     def delete_class(self, class_id):
         class_id = clean(class_id, '班级编号', 40)
+        self.create_snapshot('删除班级前')
         now = time.time()
         with self.connect() as db:
             row = db.execute('SELECT name FROM classes WHERE id=? AND deleted_at IS NULL', (class_id,)).fetchone()
@@ -241,6 +389,7 @@ class Store:
                            (class_id,))
             else:
                 db.execute('DELETE FROM classes WHERE id=?', (class_id,))
+        self.mark_changed()
         return {'ok': True, 'moved': moved}
 
     def restore_class(self, class_id):
@@ -253,6 +402,7 @@ class Store:
             db.execute('UPDATE classes SET deleted_at=NULL WHERE id=?', (class_id,))
             db.execute('UPDATE students SET deleted_at=NULL,updated=? WHERE class_id=? AND deleted_at IS NOT NULL',
                        (time.time(), class_id))
+        self.mark_changed()
         return {'ok': True, 'restored': restored}
 
     def admin_update(self, data):
@@ -269,4 +419,5 @@ class Store:
                            (*values.values(), time.time(), sid))
             except sqlite3.IntegrityError:
                 raise Problem('该班级已有这个学号（包括回收站），请检查后重试。', 409)
+        self.mark_changed()
         return {'student': self.student(sid)}

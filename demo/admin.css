@@ -107,3 +107,144 @@ dd { overflow-wrap: anywhere; white-space: pre-wrap; }
 .trash-group .trash-row:last-child { border-bottom:0; }
 @media(max-width:900px) { #view-classes .class-form-grid { grid-template-columns:1fr; } }
 @media(max-width:700px) { #view-classes { padding:22px; } .class-editor { padding:18px; } }
+
+/* Elder-friendly teacher workspace */
+:root { font-size:16px; }
+.sidebar { width:252px; padding:34px 24px; }
+.logo { gap:12px; font-size:21px; line-height:1.35; }
+.logo-mark { width:42px; height:46px; font-size:23px; }
+.sidebar-nav { margin-top:42px; }
+.nav { min-height:48px; margin:7px 0; padding:12px 13px; gap:12px; font-size:16px; line-height:1.4; }
+.nav span { font-size:inherit; }
+.nav-icon { flex-basis:30px; height:30px; font-size:14px !important; }
+.nav-meta { font-size:14px !important; }
+.sidebar-bottom { gap:12px; }
+.sidebar-bottom strong { font-size:15px; }
+.sidebar-bottom small { margin-top:5px; font-size:13px; }
+.teacher { width:40px; height:40px; }
+main { margin-left:252px; }
+.topbar { height:84px; padding:0 48px; font-size:14px; }
+.content { padding:44px 48px; }
+h1 { font-size:32px; line-height:1.25; }
+h2 { font-size:21px; }
+.muted { font-size:15px; line-height:1.75; }
+.button { min-height:46px; padding:12px 18px; border-radius:9px; font-size:15px; line-height:1.3; }
+.heading { align-items:flex-start; }
+.heading .muted { margin-top:10px; }
+.collection { margin-top:30px; padding:25px 27px; border-radius:12px; }
+.collection strong { font-size:17px; }
+.collection p { margin-top:9px; font-size:15px; line-height:1.6; }
+.public-link { font-size:16px; }
+.tunnel-settings { padding:16px 5px; font-size:15px; }
+.tunnel-settings form { max-width:760px; }
+.tunnel-settings p { line-height:1.65; }
+.inline-form input { min-height:48px; font-size:16px; }
+.stats { padding:36px 0; gap:28px; }
+.stats>div { padding-left:28px; }
+.stats span { font-size:15px; }
+.stats strong { font-size:38px; line-height:1.5; }
+.stats small { font-size:15px; }
+progress { max-width:190px; height:6px; }
+.roster { border-radius:12px; }
+.roster-heading { padding:29px 28px 23px; }
+.roster-heading p { margin-top:8px; font-size:14px; line-height:1.65; }
+.search { min-height:46px; padding:0 15px; gap:12px; border-radius:8px; font-size:15px; }
+.search input { width:220px; padding:12px 0; font-size:16px; }
+.filters { gap:9px; padding:0 28px 23px; }
+.filters button { min-height:42px; padding:9px 14px; font-size:15px; }
+.filters>span { font-size:14px; }
+th { padding:15px 20px; font-size:14px; }
+td { padding:21px 20px; font-size:15px; }
+th:first-child,td:first-child { padding-left:28px; }
+.student { gap:13px; }
+.student strong { font-size:16px; }
+.student small { margin-top:4px; font-size:14px; }
+.avatar { width:42px; height:46px; font-size:17px; }
+.badge { padding:6px 9px; font-size:14px; }
+.view { min-height:40px; padding:9px; font-size:15px; }
+.table-footer { padding:20px 28px; font-size:13px; }
+.empty-state h3 { font-size:20px; }
+.empty-state p, #empty { font-size:15px; }
+.empty-mark { width:54px; height:60px; font-size:26px; }
+.class-tabs { gap:11px; margin-bottom:25px; }
+.class-tabs small { font-size:13px; }
+.section-title p { font-size:15px; }
+.section-title > span { font-size:14px; }
+.standalone-panel { padding:34px; border-radius:13px; }
+.standalone-panel .section-title h1 { font-size:29px; }
+.trash-group h3 { font-size:17px; }
+.trash-group header span { font-size:14px; }
+.trash-row strong { font-size:16px; }
+.trash-row p { font-size:14px; line-height:1.6; }
+dialog { width:min(520px,calc(100% - 32px)); padding:36px; }
+dialog h2 { font-size:24px; }
+.detail-note, dt, .confirm-dialog .confirm-label { font-size:14px; }
+dd { font-size:17px; }
+.confirm-dialog > p:not(.confirm-label) { font-size:15px; }
+.edit-form label { font-size:16px; }
+.edit-form textarea, .edit-form select { min-height:48px; padding:12px; font-size:16px; }
+
+/* A simple vertical class setup form with comfortable proportions. */
+#view-classes { padding:38px; }
+.class-editor { max-width:880px; margin-top:32px; padding:30px; border-radius:16px; }
+#view-classes .class-form-grid { display:grid; grid-template-columns:1fr; gap:26px; }
+#view-classes .class-form-grid label { display:grid; gap:10px; font-size:16px; }
+#view-classes .class-form-grid label > span { font-weight:650; }
+#view-classes .term-field { max-width:600px; }
+#view-classes input, #view-classes textarea { padding:15px 17px; border-radius:11px; font-size:17px; }
+#view-classes input { min-height:56px; }
+#view-classes textarea { min-height:132px; line-height:1.65; }
+#view-classes .class-form-grid label small { margin:0; font-size:14px; line-height:1.65; }
+#view-classes .class-form-grid button { min-width:180px; min-height:50px; padding:13px 22px; }
+.class-list { margin-top:31px; padding-top:25px; }
+.class-list-label { font-size:15px; }
+#view-classes .class-chips { margin-top:15px; gap:11px; }
+#view-classes .class-chips > .class-chip { gap:10px; padding:8px 8px 8px 16px; font-size:16px; }
+.class-chip button { width:34px; height:34px; font-size:21px; }
+
+/* Lightweight local snapshot history. */
+.history-list { max-width:900px; margin-top:27px; overflow:hidden; border:1px solid #e0e7e1; border-radius:14px; background:#fff; }
+.history-item { display:grid; grid-template-columns:46px minmax(0,1fr) auto; align-items:center; gap:16px; min-height:86px; padding:18px 20px; border-bottom:1px solid #e8ece8; }
+.history-item:last-child { border-bottom:0; }
+.history-marker { display:grid; place-items:center; width:42px; height:42px; border-radius:50%; background:#eaf1ec; color:#426453; font-size:14px; font-weight:700; }
+.history-heading { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.history-heading strong { font-size:17px; font-weight:650; }
+.history-heading span { padding:5px 9px; border-radius:999px; background:#f0f4f0; color:#64786c; font-size:13px; }
+.history-copy p { margin:7px 0 0; color:#74837b; font-size:15px; }
+.history-empty { padding:54px 24px; text-align:center; }
+.history-empty > span { display:grid; place-items:center; width:52px; height:52px; margin:0 auto 17px; border-radius:50%; background:#edf3ee; color:#668071; font-size:20px; }
+.history-empty h3 { margin:0; font-size:20px; }
+.history-empty p { margin:10px 0 0; color:#78867e; font-size:15px; }
+
+@media(min-width:701px) {
+  body.sidebar-collapsed .sidebar { width:84px; }
+  body.sidebar-collapsed main { margin-left:84px; }
+  body.sidebar-collapsed .sidebar-bottom { left:22px; }
+}
+@media(max-width:1100px) {
+  .sidebar { width:210px; padding:28px 18px; }
+  main { margin-left:210px; }
+  .content { padding:34px 28px; }
+  .topbar { padding:0 28px; }
+}
+@media(max-width:700px) {
+  .sidebar { position:static; width:auto; padding:18px 20px; }
+  .sidebar-nav { margin:13px 0 0; display:flex; gap:7px; overflow-x:auto; }
+  .nav { display:flex; flex:0 0 auto; min-height:44px; margin:0; padding:9px 12px; }
+  .nav-icon { display:none; }
+  .nav-text { display:block; }
+  .nav-meta { display:none; }
+  main { margin:0; }
+  .topbar { height:58px; padding:0 18px; font-size:13px; }
+  .content { padding:25px 16px; }
+  h1 { font-size:28px; }
+  .stats { gap:22px 18px; }
+  .stats>div { padding-left:18px; }
+  .stats strong { font-size:34px; }
+  .filters { padding-left:18px; padding-right:18px; }
+  .standalone-panel, #view-classes { padding:23px 19px; }
+  .class-editor { padding:21px 18px; }
+  .history-item { grid-template-columns:42px minmax(0,1fr); }
+  .history-item .button { grid-column:2; justify-self:start; }
+  dialog { padding:27px 22px; }
+}

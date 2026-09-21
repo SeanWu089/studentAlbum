@@ -8,6 +8,7 @@
     <a class="nav active" data-view="students" href="#students"><span class="nav-icon">档</span><span class="nav-text">学生档案</span><span class="nav-meta" id="nav-count">0</span></a>
     <a class="nav" data-view="trash" href="#trash"><span class="nav-icon">收</span><span class="nav-text">回收站</span></a>
     <a class="nav" data-view="classes" href="#classes"><span class="nav-icon">班</span><span class="nav-text">本学期班级</span></a>
+    <a class="nav" data-view="history" href="#history"><span class="nav-icon">史</span><span class="nav-text">资料历史</span></a>
     <a class="nav" href="/" target="_blank" rel="noopener"><span class="nav-icon">览</span><span class="nav-text">预览学生填写页</span></a>
   </nav>
   <div class="sidebar-bottom"><span class="avatar teacher">师</span><div><strong>老师工作台</strong><small>班级与学生管理</small></div></div>
@@ -30,12 +31,18 @@
     <section id="view-trash" class="view-panel standalone-panel" data-view-panel="trash" hidden><div class="section-title"><div><h1>回收站</h1><p>档案保留 30 天，期间可恢复；到期后自动清理。</p></div><span id="trash-count">0 份档案</span></div><div id="trash-list"></div></section>
     <section id="view-classes" class="view-panel standalone-panel" data-view-panel="classes" hidden>
       <div class="section-title"><div><h1>本学期班级</h1><p>添加任教班级后，学生填写时即可选择。</p></div><span id="class-count">0 个班级</span></div>
-      <form id="class-form" class="class-editor"><div class="class-form-grid"><label for="term">学期名称<input id="term" maxlength="60" placeholder="例如：2026—2027 学年第一学期" required></label><label for="class-names">添加班级<textarea id="class-names" maxlength="6000" rows="3" aria-describedby="class-names-help"></textarea><small id="class-names-help">多个班级可用逗号或换行分隔</small></label><button id="save-classes" type="submit" class="button solid">保存班级设置</button></div><p id="class-error" class="form-error" role="alert"></p></form>
+      <form id="class-form" class="class-editor"><div class="class-form-grid"><label class="term-field" for="term"><span>学期名称</span><input id="term" maxlength="60" placeholder="例如：2026—2027 学年第一学期" required><small>会显示在学生填写页和老师工作台顶部</small></label><label class="classes-field" for="class-names"><span>添加班级</span><textarea id="class-names" maxlength="6000" rows="4" aria-describedby="class-names-help" placeholder="例如：高一（1）班、高一（2）班"></textarea><small id="class-names-help">一次可以添加多个班级，用逗号、顿号或换行分隔。已有班级不会重复添加。</small></label><button id="save-classes" type="submit" class="button solid">保存班级设置</button></div><p id="class-error" class="form-error" role="alert"></p></form>
       <div class="class-list"><p class="class-list-label">已添加班级</p><div id="class-chips" class="class-chips"><p class="muted">尚未添加班级</p></div></div>
+    </section>
+    <section id="view-history" class="view-panel standalone-panel" data-view-panel="history" hidden>
+      <div class="section-title"><div><h1>资料历史</h1><p>系统会在资料停止变化后自动留下历史版本，误删时可以恢复。</p></div><span id="history-count">0 个版本</span></div>
+      <p id="history-error" class="form-error" role="status"></p>
+      <div id="history-list" class="history-list"><p class="muted">还没有历史版本。</p></div>
     </section>
   </section>
 </main>
 <dialog id="detail"><form method="dialog"><button class="close" aria-label="关闭详情">×</button></form><div id="detail-content"></div></dialog>
 <dialog id="class-delete-dialog" class="confirm-dialog" aria-labelledby="class-delete-title"><p class="confirm-label">删除班级</p><h2 id="class-delete-title">确认删除班级吗？</h2><p>班级内所有学生将被移入回收站。</p><div class="confirm-actions"><button id="class-delete-cancel" class="button" type="button">取消</button><button id="class-delete-confirm" class="button danger" type="button">确认删除</button></div></dialog>
+<dialog id="history-restore-dialog" class="confirm-dialog" aria-labelledby="history-restore-title"><p class="confirm-label">恢复历史版本</p><h2 id="history-restore-title">确认恢复吗？</h2><p id="history-restore-copy">当前资料会先自动保存，然后恢复到选中的历史版本。</p><div class="confirm-actions"><button id="history-restore-cancel" class="button" type="button">取消</button><button id="history-restore-confirm" class="button danger" type="button">恢复这个版本</button></div></dialog>
 <div id="toast" role="status"></div><script src="admin.js"></script>
 </body></html>

@@ -1,4 +1,4 @@
-let trash = [], editing = false;
+let trash = [], snapshots = [], editing = false;
 let students = [], classes = [], filter = 'all', publicUrl = '', adminKey = '', currentTerm = '';
 let loaded = false, refreshBusy = false, detailId = null, photoUrl = '', detailVersion = '';
 const $ = (selector) => document.querySelector(selector);
@@ -55,7 +55,9 @@ async function refresh() {
     const data = await api('/api/admin/overview');
     students = data.students;
     trash = data.trash || [];
+    snapshots = data.snapshots?.items || [];
     renderTrash();
+    renderHistory(data.snapshots?.error || '');
     data.classes.sort((a,b) => a.name.localeCompare(b.name, 'zh-CN', {numeric:true}));
     if (JSON.stringify(classes) !== JSON.stringify(data.classes) || !loaded) {
       classes = data.classes;
@@ -173,6 +175,48 @@ function renderTrash() {
   document.querySelectorAll('[data-restore-class]').forEach(b => b.onclick = async () => { b.disabled = true; try { const result = await api('/api/admin/restore-class',{id:b.dataset.restoreClass}); await refresh(); toast(`已恢复 ${result.restored} 位学生`); } catch(e) { toast(e.message); b.disabled = false; } });
 }
 
+function formatSnapshotTime(value) {
+  return new Date(value * 1000).toLocaleString('zh-CN', {month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+function renderHistory(error = '') {
+  $('#history-count').textContent = `${snapshots.length} 个版本`;
+  $('#history-error').textContent = error;
+  $('#history-list').innerHTML = snapshots.length ? snapshots.map((snapshot, index) => `<article class="history-item">
+    <div class="history-marker" aria-hidden="true">${index === 0 ? '今' : '史'}</div>
+    <div class="history-copy"><div class="history-heading"><strong>${escapeText(formatSnapshotTime(snapshot.createdAt))}</strong><span>${escapeText(snapshot.reason)}</span></div><p>${snapshot.classes} 个班级 · ${snapshot.students} 位学生</p></div>
+    <button class="button" type="button" data-restore-snapshot="${snapshot.id}">恢复</button>
+  </article>`).join('') : '<div class="history-empty"><span aria-hidden="true">史</span><h3>还没有历史版本</h3><p>资料发生变化后，系统会自动保留最近的版本。</p></div>';
+  document.querySelectorAll('[data-restore-snapshot]').forEach(button => button.onclick = () => requestSnapshotRestore(button.dataset.restoreSnapshot));
+}
+
+let pendingSnapshotRestore = null;
+function requestSnapshotRestore(id) {
+  const snapshot = snapshots.find(item => item.id === id);
+  if (!snapshot) return;
+  pendingSnapshotRestore = id;
+  $('#history-restore-title').textContent = `恢复到${formatSnapshotTime(snapshot.createdAt)}？`;
+  $('#history-restore-copy').textContent = `该版本包含 ${snapshot.classes} 个班级、${snapshot.students} 位学生。当前资料会先自动保存。`;
+  $('#history-restore-dialog').showModal();
+}
+
+$('#history-restore-cancel').onclick = () => $('#history-restore-dialog').close();
+$('#history-restore-dialog').addEventListener('close', () => { pendingSnapshotRestore = null; $('#history-restore-confirm').disabled = false; });
+$('#history-restore-confirm').onclick = async () => {
+  if (!pendingSnapshotRestore) return;
+  const id = pendingSnapshotRestore;
+  $('#history-restore-confirm').disabled = true;
+  try {
+    const result = await api('/api/admin/restore-snapshot', {id});
+    $('#history-restore-dialog').close();
+    await refresh();
+    toast(`已恢复 ${result.classes} 个班级、${result.students} 位学生`);
+  } catch (error) {
+    toast(error.message);
+    $('#history-restore-confirm').disabled = false;
+  }
+};
+
 let pendingClassDelete = null;
 async function deleteClass(id) {
   try {
@@ -206,6 +250,7 @@ function activeView() {
   const hash = location.hash.slice(1);
   if (hash === 'trash') return 'trash';
   if (hash === 'classes' || hash === 'class-settings') return 'classes';
+  if (hash === 'history') return 'history';
   return 'students';
 }
 
@@ -217,7 +262,7 @@ function renderView() {
     link.classList.toggle('active', selected);
     if (selected) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
   });
-  const labels = {students:'学生档案', trash:'回收站', classes:'本学期班级'};
+  const labels = {students:'学生档案', trash:'回收站', classes:'本学期班级', history:'资料历史'};
   $('#term-title').textContent = `${currentTerm || '我的班级'} / ${labels[view]}`;
 }
 

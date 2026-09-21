@@ -4,7 +4,7 @@
 
 ## Windows 免配置版
 
-`dist/StudentAlbum-Windows-x64-v0.2.zip` 是给 Windows 10 / 11 64 位电脑使用的便携包。它包含 Python、Pillow 和 ngrok，不需要另行配置开发环境。
+`dist/StudentAlbum-Windows-x64-v0.3.zip` 是给 Windows 10 / 11 64 位电脑使用的便携包。它包含 Python、Pillow 和 ngrok，不需要另行配置开发环境。
 
 1. 把压缩包完整解压到桌面或“文档”文件夹。
 2. 双击“安装并启动学生小档案.cmd”。
@@ -54,4 +54,6 @@ ngrok 免费入口可能先显示 Visit Site 提示，按提示继续。网络�
 
 生成 Windows 便携包：`python3 packaging/build_windows.py`。
 
-`v0.1` 为最初学生端原型快照；`v0.2` 为带正式老师管理端、数据库、回收站和 Windows 免配置启动包的版本。
+GitHub 自动测试和发布已配置在 `.github/workflows/windows.yml`：提交到 main 或创建拉取请求会在 Windows 上测试、打包并使用包内 Python 实际启动网页；推送 `v0.4` 这样的版本标签会在测试通过后发布 Release。具体发布和保留旧数据的更新步骤见 [GitHub 发布流程](docs/github-release.md)。妈妈可收藏 [最新版下载页](https://github.com/SeanWu089/studentAlbum/releases/latest)，以后始终从同一页面下载。
+
+`v0.1` 为最初学生端原型快照；`v0.2` 加入正式老师管理端、数据库和回收站；`v0.3` 加入长辈友好界面、自动快照恢复、固定 ngrok 版本及经过 Windows 实机流程验证的发布包。

@@ -1,0 +1,61 @@
+name: Test, build and release Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.7'
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Test application
+        run: python scripts/test_app.py -v
+      - name: Test packaging
+        run: python -m unittest discover -s packaging -p "test_*.py" -v
+      - name: Use release tag as package version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: '"STUDENT_ALBUM_VERSION=$env:GITHUB_REF_NAME" >> $env:GITHUB_ENV'
+      - name: Build portable package
+        run: python packaging/build_windows.py
+      - name: Start the extracted package with bundled Python
+        run: python packaging/smoke_windows.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-package
+          path: dist
+      - name: Publish tested package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" dist/*.zip dist/*.sha256 --verify-tag --title "学生小档案 $RELEASE_TAG" --generate-notes
