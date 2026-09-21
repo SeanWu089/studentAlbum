@@ -71,7 +71,7 @@ def copy_app(target):
     app = target / 'app'
     shutil.copytree(ROOT / 'demo', app / 'demo')
     (app / 'scripts').mkdir(parents=True)
-    for name in ('serve.py', 'storage.py', 'tunnel.py', 'webserver.py', 'windows_launcher.py'):
+    for name in ('serve.py', 'storage.py', 'tunnel.py', 'webserver.py', 'windows_launcher.py', 'windows_setup.py'):
         shutil.copy2(ROOT / 'scripts' / name, app / 'scripts' / name)
 
 
@@ -102,8 +102,10 @@ def verify_package(target):
         target / 'runtime' / 'pythonw.exe',
         target / 'app' / '.runtime' / 'ngrok.exe',
         target / 'app' / 'scripts' / 'serve.py',
+        target / 'app' / 'scripts' / 'windows_setup.py',
         target / 'assets' / 'student-album.ico',
         target / '安装并启动学生小档案.cmd',
+        target / '卸载学生小档案.cmd',
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -135,9 +137,10 @@ def main():
     with zipfile.ZipFile(ngrok_zip) as bundle:
         (target / 'app' / '.runtime' / 'ngrok.exe').write_bytes(bundle.read('ngrok.exe'))
     shutil.copytree(ROOT / 'packaging' / 'assets', target / 'assets')
-    for name in ('StudentAlbum.vbs', 'install-shortcut.ps1', 'README-Windows.txt'):
+    for name in ('StudentAlbum.vbs', 'README-Windows.txt'):
         shutil.copy2(ROOT / 'packaging' / 'windows' / name, target / name)
     shutil.copy2(ROOT / 'packaging' / 'windows' / 'InstallAndStart.cmd', target / '安装并启动学生小档案.cmd')
+    shutil.copy2(ROOT / 'packaging' / 'windows' / 'Uninstall.cmd', target / '卸载学生小档案.cmd')
 
     verify_package(target)
     DIST.mkdir(exist_ok=True)

@@ -2,10 +2,13 @@
 """Start the bundled server invisibly on Windows and open the teacher page."""
 from pathlib import Path
 import ctypes
+import json
 import socket
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 
 
@@ -21,14 +24,42 @@ def server_ready():
         return False
 
 
+def server_root():
+    try:
+        with urllib.request.urlopen('http://127.0.0.1:8765/api/admin/instance', timeout=1) as response:
+            data = json.load(response)
+        return Path(data.get('root', '')).resolve() if data.get('root') else None
+    except (OSError, ValueError, KeyError, urllib.error.URLError):
+        return None
+
+
+def stop_old_server():
+    script = r'''
+$ErrorActionPreference='SilentlyContinue'
+Get-CimInstance Win32_Process | Where-Object {
+  ($_.Name -eq 'pythonw.exe' -or $_.Name -eq 'python.exe') -and
+  $_.CommandLine -and
+  $_.CommandLine -match 'app[\\/]scripts[\\/]serve\.py'
+} | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+'''
+    subprocess.run(['powershell.exe', '-NoProfile', '-Command', script],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(20):
+        if not server_ready():
+            return
+        time.sleep(0.25)
+
+
 def alert(message):
     ctypes.windll.user32.MessageBoxW(0, message, '学生小档案', 0x10)
 
 
 def main():
     if server_ready():
-        webbrowser.open(ADMIN_URL)
-        return 0
+        if server_root() == ROOT.resolve():
+            webbrowser.open(ADMIN_URL)
+            return 0
+        stop_old_server()
 
     runtime = ROOT / '.runtime'
     runtime.mkdir(exist_ok=True)

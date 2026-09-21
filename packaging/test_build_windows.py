@@ -36,11 +36,26 @@ class WindowsPackageTest(unittest.TestCase):
         self.assertIn("'--lan'", source)
         self.assertNotIn("'--local', '--lan'", source)
 
+    def test_windows_launcher_replaces_old_server(self):
+        source = (ROOT / 'scripts' / 'windows_launcher.py').read_text(encoding='utf-8')
+        self.assertIn('/api/admin/instance', source)
+        self.assertIn('stop_old_server()', source)
+
     def test_installer_migrates_old_ngrok_config(self):
-        source = (ROOT / 'packaging' / 'windows' / 'install-shortcut.ps1').read_text(encoding='utf-8')
-        self.assertIn("app\\.runtime\\ngrok.yml", source)
+        source = (ROOT / 'scripts' / 'windows_setup.py').read_text(encoding='utf-8')
+        self.assertIn("old_app / '.runtime' / 'ngrok.yml'", source)
         self.assertIn("LOCALAPPDATA", source)
         self.assertIn("StudentAlbum", source)
+
+    def test_setup_files_are_single_entrypoints(self):
+        windows = ROOT / 'packaging' / 'windows'
+        self.assertFalse((windows / 'install-shortcut.ps1').exists())
+        self.assertTrue((windows / 'InstallAndStart.cmd').exists())
+        self.assertTrue((windows / 'Uninstall.cmd').exists())
+        install = (windows / 'InstallAndStart.cmd').read_text(encoding='utf-8')
+        uninstall = (windows / 'Uninstall.cmd').read_text(encoding='utf-8')
+        self.assertIn('windows_setup.py', install)
+        self.assertIn('--uninstall', uninstall)
 
 
 if __name__ == '__main__':

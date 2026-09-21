@@ -138,6 +138,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.send(store.photo(self.sid()), content_type='image/jpeg')
             if path == '/api/admin/bootstrap':
                 return self.send({'key': self.app.admin_key})
+            if path == '/api/admin/instance':
+                return self.send({'root': str(self.app.root.resolve())})
             if path == '/api/admin/overview':
                 self.admin()
                 return self.send({**store.classes(), 'students': store.students(), 'trash': store.students(trash=True),
