@@ -42,6 +42,21 @@ class TunnelTest(unittest.TestCase):
                 reopened = Tunnel(Path(runtime_dir), {}, 8766)
                 self.assertEqual(reopened.configured_url, 'https://assigned.ngrok-free.dev')
 
+    def test_saving_new_token_resets_old_public_url(self):
+        with tempfile.TemporaryDirectory() as runtime_dir, tempfile.TemporaryDirectory() as local_app_data:
+            state = {}
+            with patch('tunnel.platform.system', return_value='Windows'), \
+                 patch.dict(os.environ, {'LOCALAPPDATA': local_app_data}, clear=False):
+                tunnel = Tunnel(Path(runtime_dir), state, 8766)
+                tunnel.remember_public_url('https://old.ngrok-free.dev')
+                config = tunnel.save_token('secret-example-token')
+                self.assertEqual(tunnel.configured_url, '')
+                self.assertEqual(state['configuredPublicUrl'], '')
+                self.assertFalse((Path(local_app_data) / 'StudentAlbum' / 'public-url.txt').exists())
+                saved = config.read_text(encoding='utf-8')
+                self.assertIn('authtoken: "secret-example-token"', saved)
+                self.assertNotIn('old.ngrok-free.dev', saved)
+
 
 if __name__ == '__main__':
     unittest.main()

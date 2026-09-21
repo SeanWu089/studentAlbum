@@ -41,6 +41,19 @@ class Tunnel:
         self.configured_url = url
         self.state['configuredPublicUrl'] = url
 
+    def save_token(self, token):
+        directory = self.user_directory()
+        directory.mkdir(parents=True, exist_ok=True)
+        config = directory / 'ngrok.yml'
+        fd = os.open(config, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, 'w', encoding='utf-8') as output:
+            output.write('version: "2"\nauthtoken: ' + json.dumps(token) + '\n')
+        saved_url = directory / 'public-url.txt'
+        saved_url.unlink(missing_ok=True)
+        self.configured_url = ''
+        self.state['configuredPublicUrl'] = ''
+        return config
+
     def config_path(self):
         """Use a per-user config on Windows and migrate the old app-local config once."""
         legacy = self.runtime / 'ngrok.yml'
@@ -56,12 +69,15 @@ class Tunnel:
             shutil.copy2(legacy, config)
         return config if config.exists() else None
 
-    def start(self):
+    def start(self, token=''):
         with self.lock:
             self.stop()
+            if token:
+                self.save_token(token)
             self.stop_event.clear()
             self.state.update(publicUrl='', configuredPublicUrl=self.configured_url,
-                              tunnelStatus='connecting', message='正在连接公网固定地址…')
+                              tunnelStatus='connecting', needsToken=False,
+                              message='正在连接公网固定地址…')
             self.thread = threading.Thread(target=self.run, daemon=True)
             self.thread.start()
 
@@ -77,7 +93,7 @@ class Tunnel:
         config = self.config_path()
         defaults = [Path.home() / 'Library/Application Support/ngrok/ngrok.yml', Path.home() / '.config/ngrok/ngrok.yml']
         if not config and not any(p.exists() for p in defaults) and not os.getenv('NGROK_AUTHTOKEN'):
-            self.state.update(publicUrl='', tunnelStatus='not_configured',
+            self.state.update(publicUrl='', tunnelStatus='not_configured', needsToken=True,
                               message='尚未配置公网连接。')
             return
         logpath = self.runtime / 'ngrok.log'
@@ -91,7 +107,7 @@ class Tunnel:
                         failure = logpath.read_text(errors='replace')[-15000:]
                         code = re.search(r'ERR_NGROK_\d+', failure)
                         missing = any(value in failure for value in ('ERR_NGROK_4018', 'ERR_NGROK_105'))
-                        self.state.update(publicUrl='', tunnelStatus='error',
+                        self.state.update(publicUrl='', tunnelStatus='error', needsToken=missing,
                             message=('公网连接凭证无效，请检查本机 ngrok 配置。' if missing else
                                      f'固定公网地址连接失败{("（" + code.group() + "）") if code else ""}，请检查网络后重试。'))
                         return
@@ -130,6 +146,7 @@ class Tunnel:
                         if url != self.state.get('publicUrl'):
                             print('学生公网入口：' + url, flush=True)
                         self.state.update(publicUrl=url, tunnelStatus='online',
+                                          needsToken=False,
                                           message='固定公网入口已连接，手机可使用移动数据访问。')
                         deadline = time.monotonic() + 45
                     else:

@@ -17,7 +17,7 @@
   <header class="topbar"><span id="term-title">我的班级 / 学生档案</span><span id="sync-state" role="status">正在连接…</span></header>
   <section class="content">
     <section id="view-students" class="view-panel" data-view-panel="students">
-    <div class="heading"><div><h1 id="class-title">学生档案</h1><p class="muted">查看、编辑和管理本班学生资料</p></div><button id="export" class="button" disabled>导出本班名单 ↓</button></div><div id="class-tabs" class="class-tabs" aria-label="班级切换"></div>
+    <div class="heading"><div><h1 id="class-title">学生档案</h1><p class="muted">查看、编辑和管理本班学生资料</p></div><div class="heading-actions"><div class="student-search"><label for="student-search">搜索学生</label><input id="student-search" autocomplete="off" spellcheck="false" placeholder="输入学生姓名"><div id="student-search-results" class="student-search-results" hidden></div></div><button id="export" class="button" disabled>导出本班名单 ↓</button></div></div><div id="class-tabs" class="class-tabs" aria-label="班级切换"></div>
     <section class="connection-grid" aria-label="学生填写入口">
       <article class="connection-card" data-kind="lan">
         <div class="connection-head"><div><strong>局域网填写入口</strong><small>同一 Wi-Fi 或热点</small></div><span id="lan-status" class="connection-status pending" role="status">检测中</span></div>
@@ -29,11 +29,12 @@
         <div class="connection-head"><div><strong>公网填写入口</strong><small>ngrok 固定地址</small></div><span id="public-status" class="connection-status pending" role="status">连接中</span></div>
         <p id="public-address" class="connection-address">正在连接固定公网地址…</p>
         <p id="public-message" class="connection-note">手机使用移动数据或异地网络时使用。</p>
+        <form id="tunnel-form" class="tunnel-form" hidden><label for="ngrok-token">ngrok Authtoken</label><div class="tunnel-form-row"><input id="ngrok-token" type="password" autocomplete="off" spellcheck="false"><button type="submit" class="button solid">保存并连接</button></div><p id="tunnel-error" class="form-error" role="alert"></p></form>
         <div class="connection-actions"><button id="copy-public" class="button solid" disabled>复制公网链接</button><button id="reconnect" class="button">重新连接</button></div>
       </article>
     </section>
     <div class="stats"><div><span>已建档学生</span><strong><b id="total">0</b> <small>位</small></strong></div><div><span>资料完整</span><strong><b id="completed">0</b> <small>位</small></strong></div><div><span>待补充</span><strong><b id="pending">0</b> <small>位</small></strong></div><div class="stat-progress"><span>已建档资料完成率</span><strong><b id="percent">0</b><small>%</small></strong><progress id="progress" max="100" value="0" aria-label="资料完成率"></progress></div></div>
-    <section class="roster" id="roster"><div class="roster-heading"><div><h2>学生档案</h2><p id="roster-note">学生保存后，档案会自动更新在这里。</p></div><label class="search"><span>搜索</span><input id="search" placeholder="姓名、学号或籍贯" aria-label="搜索学生"></label></div>
+    <section class="roster" id="roster"><div class="roster-heading"><div><h2>学生档案</h2><p id="roster-note">学生保存后，档案会自动更新在这里。</p></div></div>
     <div class="filters" role="group" aria-label="档案筛选"><select hidden id="class-filter" aria-label="按班级筛选"><option value="">尚未添加班级</option></select><button class="selected" data-filter="all">全部学生</button><button data-filter="complete">资料完整</button><button data-filter="pending">待补充</button><span id="count">共 0 位</span></div>
     <div class="table-wrap" id="table-wrap" hidden><table><thead><tr><th>学生</th><th>班级</th><th>籍贯</th><th>喜欢的科目</th><th>闪光点</th><th>资料状态</th><th><span class="sr-only">操作</span></th></tr></thead><tbody id="rows"></tbody></table></div>
     <div id="empty" class="empty-state"><span class="empty-mark" aria-hidden="true">册</span><h3>还没有学生档案</h3><p>添加班级后，将填写链接发给学生。<br>第一份档案会从这里开始。</p></div>
@@ -43,7 +44,7 @@
     <section id="view-trash" class="view-panel standalone-panel" data-view-panel="trash" hidden><div class="section-title"><div><h1>回收站</h1><p>档案保留 30 天，期间可恢复；到期后自动清理。</p></div><span id="trash-count">0 份档案</span></div><div id="trash-list"></div></section>
     <section id="view-classes" class="view-panel standalone-panel" data-view-panel="classes" hidden>
       <div class="section-title"><div><h1>本学期班级</h1><p>添加任教班级后，学生填写时即可选择。</p></div><span id="class-count">0 个班级</span></div>
-      <form id="class-form" class="class-editor"><div class="class-form-grid"><label class="term-field" for="term"><span>学期名称</span><input id="term" maxlength="60" placeholder="例如：2026—2027 学年第一学期" required><small>会显示在学生填写页和老师工作台顶部</small></label><label class="classes-field" for="class-names"><span>添加班级</span><textarea id="class-names" maxlength="6000" rows="4" aria-describedby="class-names-help" placeholder="例如：高一（1）班、高一（2）班"></textarea><small id="class-names-help">一次可以添加多个班级，用逗号、顿号或换行分隔。已有班级不会重复添加。</small></label><button id="save-classes" type="submit" class="button solid">保存班级设置</button></div><p id="class-error" class="form-error" role="alert"></p></form>
+      <form id="class-form" class="class-editor"><div class="class-form-grid"><label class="term-field" for="term"><span>学期名称</span><input id="term" maxlength="60" required><small>会显示在学生填写页和老师工作台顶部</small></label><label class="classes-field" for="class-names"><span>添加班级</span><input id="class-names" maxlength="6000" aria-describedby="class-names-help"><small id="class-names-help">一次可以添加多个班级，用逗号、顿号或分号分隔。已有班级不会重复添加。</small></label><button id="save-classes" type="submit" class="button solid">保存班级设置</button></div><p id="class-error" class="form-error" role="alert"></p></form>
       <div class="class-list"><p class="class-list-label">已添加班级</p><div id="class-chips" class="class-chips"><p class="muted">尚未添加班级</p></div></div>
     </section>
     <section id="view-history" class="view-panel standalone-panel" data-view-panel="history" hidden>

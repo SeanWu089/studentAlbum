@@ -14,7 +14,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / '.build' / 'windows'
 DIST = ROOT / 'dist'
-VERSION = os.environ.get('STUDENT_ALBUM_VERSION', 'v0.3.1')
+VERSION = os.environ.get('STUDENT_ALBUM_VERSION', 'v0.3.3')
 if not re.fullmatch(r'v\d+\.\d+(?:\.\d+)?', VERSION):
     raise ValueError('版本号必须类似 v0.3 或 v0.3.1')
 PYTHON_VERSION = '3.13.7'

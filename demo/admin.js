@@ -32,10 +32,8 @@ function renderStudents() {
   const scoped = students.filter(s => s.classId === classId);
   $('#class-title').textContent = classes.find(c => c.id === classId)?.name || '学生档案';
   $('#class-tabs').innerHTML = classes.map(c => `<button class="button ${c.id === classId ? 'solid' : ''}" data-class="${c.id}">${escapeText(c.name)} <small>${students.filter(s => s.classId === c.id).length} 人</small></button>`).join('');
-  document.querySelectorAll('[data-class]').forEach(b => b.onclick = () => { $('#class-filter').value = b.dataset.class; $('#search').value = ''; renderStudents(); });
-  const query = $('#search').value.trim().toLowerCase();
-  const visible = scoped.filter(s => (filter === 'all' || s.complete === (filter === 'complete')) &&
-    [s.name, s.number, s.origin, s.className].some(v => v.toLowerCase().includes(query)));
+  document.querySelectorAll('[data-class]').forEach(b => b.onclick = () => { $('#class-filter').value = b.dataset.class; renderStudents(); });
+  const visible = scoped.filter(s => filter === 'all' || s.complete === (filter === 'complete'));
   const completed = scoped.filter(s => s.complete).length;
   const percent = scoped.length ? Math.round(completed / scoped.length * 100) : 0;
   $('#total').textContent = scoped.length;
@@ -52,6 +50,23 @@ function renderStudents() {
   $('#empty').innerHTML = scoped.length ? '<h3>没有符合条件的档案</h3><p>试试其他状态或关键词。</p>' : '<span class="empty-mark" aria-hidden="true">册</span><h3>这个班级还没有学生档案</h3><p>学生提交后会显示在这里。</p>';
   document.querySelectorAll('[data-id]').forEach(b => b.onclick = () => showDetail(b.dataset.id));
   return visible;
+}
+
+function renderStudentSearch() {
+  const input = $('#student-search');
+  const results = $('#student-search-results');
+  const query = input.value.trim().toLowerCase();
+  if (!query) { results.hidden = true; results.innerHTML = ''; return; }
+  const matches = students.filter(s => s.name.toLowerCase().includes(query)).slice(0, 12);
+  results.innerHTML = matches.length ? matches.map(s => `<button type="button" data-search-id="${s.id}"><span class="avatar">${escapeText(s.name.slice(-2))}</span><span><strong>${escapeText(s.name)}</strong><small>${escapeText(s.className)} · 学号 ${escapeText(s.number)}</small></span></button>`).join('') : '<p>没有找到这个学生</p>';
+  results.hidden = false;
+  document.querySelectorAll('[data-search-id]').forEach(button => button.onclick = () => {
+    const student = students.find(s => s.id === button.dataset.searchId);
+    if (!student) return;
+    input.value = '';
+    results.hidden = true;
+    showDetail(student.id);
+  });
 }
 
 async function refresh() {
@@ -96,10 +111,12 @@ async function refresh() {
     }[connection.tunnelStatus] || ['状态未知', 'offline'];
     setConnectionStatus('#public-status', publicStatus[0], publicStatus[1]);
     $('#copy-public').disabled = !publicOnline;
-    $('#reconnect').disabled = connection.tunnelStatus === 'connecting';
+    $('#tunnel-form').hidden = !connection.needsToken;
+    $('#reconnect').disabled = connection.tunnelStatus === 'connecting' || !!connection.needsToken;
     $('#sync-state').textContent = '已连接 · 每 3 秒更新';
     $('#sync-state').classList.remove('form-error');
     renderStudents();
+    renderStudentSearch();
     renderView();
     const detail = students.find(s => s.id === detailId);
     if (!editing && $('#detail').open && detail && detailVersion !== String(detail.updatedAt)) await showDetail(detailId);
@@ -142,7 +159,10 @@ async function showDetail(id) {
 }
 
 $('#detail').addEventListener('close', () => { editing = false; detailId = null; if (photoUrl) URL.revokeObjectURL(photoUrl); photoUrl = ''; });
-$('#search').oninput = renderStudents;
+$('#student-search').oninput = renderStudentSearch;
+$('#student-search').onfocus = renderStudentSearch;
+$('#student-search').onkeydown = event => { if (event.key === 'Escape') $('#student-search-results').hidden = true; };
+document.addEventListener('click', event => { if (!event.target.closest('.student-search')) $('#student-search-results').hidden = true; });
 $('#class-filter').onchange = renderStudents;
 document.querySelectorAll('[data-filter]').forEach(b => b.onclick = () => {
   filter = b.dataset.filter;
@@ -155,6 +175,21 @@ $('#class-form').onsubmit = async event => {
   const names = $('#class-names').value.split(/[\n,，、;；]+/).map(s => s.trim()).filter(Boolean);
   try { await api('/api/admin/classes', {term:$('#term').value.trim(), names}); $('#class-names').value = ''; await refresh(); toast('班级设置已保存，学生页面已可选择'); }
   catch (error) { $('#class-error').textContent = error.message; }
+  finally { button.disabled = false; }
+};
+$('#tunnel-form').onsubmit = async event => {
+  event.preventDefault();
+  const token = $('#ngrok-token').value.trim();
+  if (!token) { $('#tunnel-error').textContent = '请粘贴 ngrok Authtoken。'; return; }
+  $('#tunnel-error').textContent = '';
+  const button = event.target.querySelector('button');
+  button.disabled = true;
+  try {
+    await api('/api/admin/tunnel', {token});
+    $('#ngrok-token').value = '';
+    await refresh();
+    toast('Authtoken 已保存，正在获取固定公网地址');
+  } catch (error) { $('#tunnel-error').textContent = error.message; }
   finally { button.disabled = false; }
 };
 $('#reconnect').onclick = async () => { $('#reconnect').disabled = true; try { await api('/api/admin/tunnel', {}); await refresh(); } catch (error) { toast(error.message); } finally { $('#reconnect').disabled = false; } };

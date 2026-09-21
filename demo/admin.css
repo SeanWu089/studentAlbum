@@ -17,6 +17,23 @@
 .connection-address { margin:19px 0 0; min-height:27px; color:#244f40; font-size:15px; font-weight:600; line-height:1.6; overflow-wrap:anywhere; }
 .connection-note { margin:8px 0 0; min-height:23px; color:#74837b; font-size:13px; line-height:1.65; }
 .connection-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+.tunnel-form { margin-top:18px; padding-top:18px; border-top:1px solid #dfe7e2; }
+.tunnel-form > label { display:block; margin-bottom:9px; color:#4d6559; font-size:14px; font-weight:650; }
+.tunnel-form-row { display:flex; gap:10px; align-items:center; }
+.tunnel-form-row input { min-width:0; flex:1; min-height:46px; padding:11px 13px; border:1px solid #d6e0d9; border-radius:9px; background:#fff; color:#263d37; font-size:15px; }
+.tunnel-form-row input:focus { outline:0; border-color:#7e9f8e; box-shadow:0 0 0 3px rgba(75,122,99,.11); }
+.heading-actions { display:flex; align-items:flex-start; gap:12px; }
+.student-search { position:relative; width:300px; }
+.student-search > label { display:block; margin-bottom:7px; color:#7d8b83; font-size:13px; }
+.student-search > input { width:100%; min-height:46px; padding:11px 14px; border:1px solid #dce3df; border-radius:9px; background:#fff; color:#263d37; font-size:15px; outline:0; }
+.student-search > input:focus { border-color:#7e9f8e; box-shadow:0 0 0 3px rgba(75,122,99,.10); }
+.student-search-results { position:absolute; z-index:20; top:100%; left:0; right:0; margin-top:6px; overflow:hidden; border:1px solid #dfe5e1; border-radius:12px; background:#fff; box-shadow:0 16px 38px rgba(31,62,48,.13); }
+.student-search-results button { display:flex; align-items:center; gap:12px; width:100%; padding:11px 13px; border:0; border-bottom:1px solid #edf0ed; background:#fff; color:#314d40; text-align:left; }
+.student-search-results button:last-child { border-bottom:0; }
+.student-search-results button:hover,.student-search-results button:focus-visible { background:#f1f5f2; }
+.student-search-results strong { display:block; font-size:15px; }
+.student-search-results small { display:block; margin-top:3px; color:#839087; font-size:12px; }
+.student-search-results p { margin:0; padding:16px; color:#839087; font-size:14px; text-align:center; }
 .class-settings { background: #fff; border: 1px solid #e3e8e1; border-radius: 10px; padding: 25px; margin-top: 12px; scroll-margin-top: 20px; }
 .section-title { display: flex; justify-content: space-between; gap: 16px; }
 .section-title p { font-size: 12px; color: #839087; line-height: 1.7; }
@@ -197,10 +214,8 @@ dd { font-size:17px; }
 #view-classes .class-form-grid { display:grid; grid-template-columns:1fr; gap:26px; }
 #view-classes .class-form-grid label { display:grid; gap:10px; font-size:16px; }
 #view-classes .class-form-grid label > span { font-weight:650; }
-#view-classes .term-field { max-width:600px; }
-#view-classes input, #view-classes textarea { padding:15px 17px; border-radius:11px; font-size:17px; }
-#view-classes input { min-height:56px; }
-#view-classes textarea { min-height:132px; line-height:1.65; }
+#view-classes .term-field, #view-classes .classes-field { max-width:600px; }
+#view-classes input { min-height:56px; padding:15px 17px; border-radius:11px; font-size:17px; line-height:1.5; }
 #view-classes .class-form-grid label small { margin:0; font-size:14px; line-height:1.65; }
 #view-classes .class-form-grid button { min-width:180px; min-height:50px; padding:13px 22px; }
 .class-list { margin-top:31px; padding-top:25px; }
@@ -233,6 +248,8 @@ dd { font-size:17px; }
   main { margin-left:210px; }
   .content { padding:34px 28px; }
   .topbar { padding:0 28px; }
+  .heading { gap:18px; }
+  .heading-actions { flex-wrap:wrap; justify-content:flex-end; }
 }
 @media(max-width:700px) {
   .sidebar { position:static; width:auto; padding:18px 20px; }
@@ -245,6 +262,10 @@ dd { font-size:17px; }
   .topbar { height:58px; padding:0 18px; font-size:13px; }
   .content { padding:25px 16px; }
   h1 { font-size:28px; }
+  .heading-actions { width:100%; justify-content:stretch; }
+  .student-search { width:100%; }
+  .heading-actions > .button { align-self:end; }
+  .tunnel-form-row { flex-direction:column; align-items:stretch; }
   .stats { gap:22px 18px; }
   .stats>div { padding-left:18px; }
   .stats strong { font-size:34px; }

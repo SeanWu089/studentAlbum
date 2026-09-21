@@ -69,6 +69,7 @@ def main():
         'lanUrl': '',
         'lanStatus': 'unavailable',
         'tunnelStatus': 'off',
+        'needsToken': False,
         'message': '公网入口尚未启动。',
     }
     store = Store(args.data_dir)
