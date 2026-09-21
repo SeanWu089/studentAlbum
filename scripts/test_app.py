@@ -4,7 +4,6 @@ import http.client
 import json
 from pathlib import Path
 import secrets
-import sqlite3
 import tempfile
 import threading
 import unittest
@@ -145,7 +144,7 @@ class AlbumTest(unittest.TestCase):
         self.assertEqual(login['student']['ability'], '认真观察')
         self.assertTrue(login['student']['complete'])
         self.assertEqual(reopened.photo(sid), saved_photo)
-        with sqlite3.connect(reopened.path) as db:
+        with reopened.connect() as db:
             row = db.execute('SELECT salt,code_hash FROM students').fetchone()
             self.assertNotEqual(row[1], '123456')
             self.assertNotIn('code_hash', json.dumps(overview))
