@@ -13,7 +13,14 @@ import zipfile
 from build_windows import DIST, PACKAGE_NAME
 
 
+def configure_output():
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='backslashreplace')
+
+
 def main():
+    configure_output()
     if sys.platform != 'win32':
         raise SystemExit('This check requires Windows; run it in GitHub Actions.')
     archive = DIST / f'{PACKAGE_NAME}.zip'
