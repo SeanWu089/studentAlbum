@@ -57,6 +57,10 @@ class WindowsPackageTest(unittest.TestCase):
         self.assertIn('windows_setup.py', install)
         self.assertIn('--uninstall', uninstall)
 
+    def test_windows_package_includes_proxy_discovery(self):
+        source = (ROOT / 'packaging' / 'build_windows.py').read_text(encoding='utf-8')
+        self.assertIn("'proxy_discovery.py'", source)
+
 
 if __name__ == '__main__':
     unittest.main()

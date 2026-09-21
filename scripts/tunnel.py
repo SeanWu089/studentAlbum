@@ -6,9 +6,21 @@ import platform
 import re
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 import urllib.request
+
+from proxy_discovery import proxy_routes
+
+
+def is_network_failure(text):
+    return any(marker in text for marker in (
+        'heartbeat timeout',
+        'failed to reconnect session',
+        'proxyconnect tcp',
+        'connection refused',
+    ))
 
 
 class Tunnel:
@@ -41,6 +53,20 @@ class Tunnel:
         self.configured_url = url
         self.state['configuredPublicUrl'] = url
 
+    def saved_route(self):
+        path = self.user_directory() / 'proxy-route.txt'
+        if not path.exists():
+            return ''
+        value = path.read_text(encoding='utf-8', errors='replace').strip()
+        return value if re.fullmatch(r'[A-Za-z0-9:_-]{1,80}', value) else ''
+
+    def remember_route(self, source):
+        if not re.fullmatch(r'[A-Za-z0-9:_-]{1,80}', source or ''):
+            return
+        directory = self.user_directory()
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / 'proxy-route.txt').write_text(source + '\n', encoding='utf-8')
+
     def save_token(self, token):
         directory = self.user_directory()
         directory.mkdir(parents=True, exist_ok=True)
@@ -69,6 +95,26 @@ class Tunnel:
             shutil.copy2(legacy, config)
         return config if config.exists() else None
 
+    def proxy_config(self, base_config, proxy_url):
+        """Create a short-lived ngrok config with the same auth plus an outbound proxy."""
+        content = ''
+        if base_config and Path(base_config).exists():
+            content = Path(base_config).read_text(encoding='utf-8', errors='strict')
+        if not content.strip():
+            content = 'version: "2"\n'
+        content = re.sub(r'(?m)^proxy_url\s*:.*(?:\n|$)', '', content)
+        if not content.endswith('\n'):
+            content += '\n'
+        content += 'proxy_url: ' + json.dumps(proxy_url) + '\n'
+        handle, name = tempfile.mkstemp(prefix='ngrok-proxy-', suffix='.yml', dir=self.runtime)
+        try:
+            with os.fdopen(handle, 'w', encoding='utf-8') as output:
+                output.write(content)
+        except Exception:
+            Path(name).unlink(missing_ok=True)
+            raise
+        return Path(name)
+
     def start(self, token=''):
         with self.lock:
             self.stop()
@@ -87,6 +133,93 @@ class Tunnel:
         return [executable, 'http', f'http://127.0.0.1:{self.port}', *url_argument,
                 '--inspect=false', '--log', 'stdout', '--log-format', 'json', *arguments]
 
+    def _attempt_text(self, logpath, offset):
+        try:
+            with logpath.open('r', encoding='utf-8', errors='replace') as source:
+                source.seek(offset)
+                return source.read()[-20000:]
+        except OSError:
+            return ''
+
+    def _discover_tunnel(self, logpath, offset, api_port):
+        text = self._attempt_text(logpath, offset)
+        if api_port is None:
+            for line in text.splitlines():
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                if entry.get('msg') == 'starting web service':
+                    match = re.fullmatch(r'(?:127\.0\.0\.1|localhost|0\.0\.0\.0):([0-9]+)', entry.get('addr', ''))
+                    if match:
+                        api_port = int(match[1])
+        if api_port is None:
+            return '', None
+        try:
+            with urllib.request.urlopen(f'http://127.0.0.1:{api_port}/api/tunnels', timeout=2) as response:
+                tunnels = json.load(response)['tunnels']
+            for tunnel in tunnels:
+                if (tunnel['public_url'].startswith('https://') and
+                    tunnel.get('config', {}).get('addr', '').rstrip('/') == f'http://127.0.0.1:{self.port}'):
+                    return tunnel['public_url'].rstrip('/'), api_port
+        except (OSError, ValueError, KeyError):
+            pass
+        return '', api_port
+
+    def _run_route(self, executable, config, source, proxy_url, logpath, timeout):
+        generated = None
+        route_config = config
+        try:
+            if proxy_url:
+                generated = self.proxy_config(config, proxy_url)
+                route_config = generated
+            with logpath.open('a', encoding='utf-8') as log:
+                log.write(json.dumps({'lvl':'info', 'msg':'StudentAlbum network route attempt', 'route':source}, ensure_ascii=False) + '\n')
+                log.flush()
+                offset = log.tell()
+                self.process = subprocess.Popen(self.command(executable, route_config), stdout=log, stderr=log)
+                deadline = time.monotonic() + timeout
+                api_port = None
+                connected = False
+                missing_since = None
+                while not self.stop_event.wait(1):
+                    failure = self._attempt_text(logpath, offset)
+                    if is_network_failure(failure):
+                        return 'network', ''
+                    if self.process.poll() is not None:
+                        code = re.search(r'ERR_NGROK_\d+', failure)
+                        if any(value in failure for value in ('ERR_NGROK_4018', 'ERR_NGROK_105')):
+                            return 'auth', code.group() if code else ''
+                        return 'error', code.group() if code else ''
+
+                    url, api_port = self._discover_tunnel(logpath, offset, api_port)
+                    if url:
+                        missing_since = None
+                        if not self.configured_url:
+                            self.remember_public_url(url)
+                        elif url != self.configured_url:
+                            return 'address', ''
+                        if not connected:
+                            self.remember_route(source)
+                            print('学生公网入口：' + url, flush=True)
+                        connected = True
+                        self.state.update(publicUrl=url, tunnelStatus='online', needsToken=False,
+                                          message='固定公网入口已连接，已自动适配当前网络。')
+                    else:
+                        if connected:
+                            missing_since = missing_since or time.monotonic()
+                            if time.monotonic() - missing_since > 20:
+                                return 'network', ''
+                        elif time.monotonic() > deadline:
+                            return 'network', ''
+            return 'stopped', ''
+        except (OSError, UnicodeError):
+            return 'error', ''
+        finally:
+            self.terminate()
+            if generated:
+                generated.unlink(missing_ok=True)
+
     def run(self):
         bundled_name = 'ngrok.exe' if platform.system() == 'Windows' else 'ngrok'
         executable = shutil.which('ngrok') or str(self.runtime / bundled_name)
@@ -96,68 +229,39 @@ class Tunnel:
             self.state.update(publicUrl='', tunnelStatus='not_configured', needsToken=True,
                               message='尚未配置公网连接。')
             return
+
+        routes = proxy_routes(self.saved_route()) if platform.system() == 'Windows' else [('direct', '')]
         logpath = self.runtime / 'ngrok.log'
         try:
-            with logpath.open('w') as log:
-                self.process = subprocess.Popen(self.command(executable, config), stdout=log, stderr=log)
-                deadline = time.monotonic() + 45
-                api_port = None
-                while not self.stop_event.wait(1):
-                    if self.process.poll() is not None:
-                        failure = logpath.read_text(errors='replace')[-15000:]
-                        code = re.search(r'ERR_NGROK_\d+', failure)
-                        missing = any(value in failure for value in ('ERR_NGROK_4018', 'ERR_NGROK_105'))
-                        self.state.update(publicUrl='', tunnelStatus='error', needsToken=missing,
-                            message=('公网连接凭证无效，请检查本机 ngrok 配置。' if missing else
-                                     f'固定公网地址连接失败{("（" + code.group() + "）") if code else ""}，请检查网络后重试。'))
-                        return
-                    url = ''
-                    try:
-                        if api_port is None:
-                            # Discover the API from this process's own startup log, never another agent.
-                            with logpath.open() as startup:
-                                for line in startup.read(32768).splitlines():
-                                    try:
-                                        entry = json.loads(line)
-                                    except ValueError:
-                                        continue
-                                    if entry.get('msg') == 'starting web service':
-                                        match = re.fullmatch(r'(?:127\.0\.0\.1|localhost|0\.0\.0\.0):([0-9]+)', entry.get('addr', ''))
-                                        if match:
-                                            api_port = int(match[1])
-                        if api_port is None:
-                            raise OSError('Agent API is not ready')
-                        with urllib.request.urlopen(f'http://127.0.0.1:{api_port}/api/tunnels', timeout=2) as response:
-                            tunnels = json.load(response)['tunnels']
-                        for tunnel in tunnels:
-                            if (tunnel['public_url'].startswith('https://') and
-                                tunnel.get('config', {}).get('addr', '').rstrip('/') == f'http://127.0.0.1:{self.port}'):
-                                url = tunnel['public_url']
-                    except (OSError, ValueError, KeyError):
-                        pass
-                    if url:
-                        url = url.rstrip('/')
-                        if not self.configured_url:
-                            self.remember_public_url(url)
-                        elif url != self.configured_url:
-                            self.state.update(publicUrl='', tunnelStatus='error',
-                                              message='实际公网地址与固定地址不一致，请重新连接。')
-                            return
-                        if url != self.state.get('publicUrl'):
-                            print('学生公网入口：' + url, flush=True)
-                        self.state.update(publicUrl=url, tunnelStatus='online',
-                                          needsToken=False,
-                                          message='固定公网入口已连接，手机可使用移动数据访问。')
-                        deadline = time.monotonic() + 45
-                    else:
-                        self.state.update(publicUrl='', tunnelStatus='connecting', message='正在连接固定公网地址…')
-                        if time.monotonic() > deadline:
-                            self.state.update(tunnelStatus='error', message='公网连接超时，请检查网络后点击重新连接。')
-                            return
+            logpath.write_text('', encoding='utf-8')
         except OSError:
-            self.state.update(publicUrl='', tunnelStatus='error', message='无法运行 ngrok，请确认已安装并重试。')
-        finally:
-            self.terminate()
+            self.state.update(publicUrl='', tunnelStatus='error', message='无法创建公网连接日志。')
+            return
+
+        for index, (source, proxy_url) in enumerate(routes):
+            if self.stop_event.is_set():
+                return
+            self.state.update(publicUrl='', tunnelStatus='connecting', needsToken=False,
+                              message='正在自动适配当前网络并连接公网…')
+            # Failed routes should give way quickly; the final route gets a longer grace period.
+            timeout = 35 if index == len(routes) - 1 else 14
+            outcome, code = self._run_route(executable, config, source, proxy_url, logpath, timeout)
+            if outcome == 'stopped':
+                return
+            if outcome == 'auth':
+                self.state.update(publicUrl='', tunnelStatus='error', needsToken=True,
+                                  message='公网连接凭证无效，请重新输入 ngrok Authtoken。')
+                return
+            if outcome == 'address':
+                self.state.update(publicUrl='', tunnelStatus='error', needsToken=False,
+                                  message='实际公网地址与固定地址不一致，请重新连接。')
+                return
+            if outcome == 'error' and code:
+                self.state.update(publicUrl='', tunnelStatus='connecting', needsToken=False,
+                                  message=f'当前网络方式连接失败（{code}），正在尝试其他方式…')
+
+        self.state.update(publicUrl='', tunnelStatus='error', needsToken=False,
+                          message='公网连接失败。请确认代理或 VPN 已连接，然后点击重新连接。')
 
     def terminate(self):
         if self.process and self.process.poll() is None:

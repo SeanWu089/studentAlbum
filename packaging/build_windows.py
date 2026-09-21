@@ -14,7 +14,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / '.build' / 'windows'
 DIST = ROOT / 'dist'
-VERSION = os.environ.get('STUDENT_ALBUM_VERSION', 'v0.3.3')
+VERSION = os.environ.get('STUDENT_ALBUM_VERSION', 'v0.3.4')
 if not re.fullmatch(r'v\d+\.\d+(?:\.\d+)?', VERSION):
     raise ValueError('版本号必须类似 v0.3 或 v0.3.1')
 PYTHON_VERSION = '3.13.7'
@@ -71,7 +71,7 @@ def copy_app(target):
     app = target / 'app'
     shutil.copytree(ROOT / 'demo', app / 'demo')
     (app / 'scripts').mkdir(parents=True)
-    for name in ('serve.py', 'storage.py', 'tunnel.py', 'webserver.py', 'windows_launcher.py', 'windows_setup.py'):
+    for name in ('serve.py', 'storage.py', 'tunnel.py', 'proxy_discovery.py', 'webserver.py', 'windows_launcher.py', 'windows_setup.py'):
         shutil.copy2(ROOT / 'scripts' / name, app / 'scripts' / name)
 
 
