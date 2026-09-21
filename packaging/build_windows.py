@@ -54,7 +54,7 @@ def download(url, path, expected_sha256=None, label=None):
         if expected_sha256:
             verify_checksum(path, expected_sha256, label or path.name)
         return
-    print(f'下载 {path.name}…', flush=True)
+    print(f'Downloading {path.name}...', flush=True)
     partial = path.with_suffix(path.suffix + '.part')
     try:
         with urllib.request.urlopen(url, timeout=90) as response, partial.open('wb') as output:
@@ -150,9 +150,9 @@ def main():
                 bundle.write(path, path.relative_to(BUILD))
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     archive.with_suffix('.zip.sha256').write_text(f'{digest}  {archive.name}\n', encoding='utf-8')
-    print(f'已生成：{archive}')
-    print(f'大小：{archive.stat().st_size / 1024 / 1024:.1f} MB')
-    print(f'SHA-256：{digest}')
+    print(f'Built: {archive}')
+    print(f'Size: {archive.stat().st_size / 1024 / 1024:.1f} MB')
+    print(f'SHA-256: {digest}')
 
 
 if __name__ == '__main__':
